@@ -2,12 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type {
-  BilliardTable,
-  TableSession,
-  RetailItem,
-  RetailSale,
-} from "./types";
+import type { BilliardTable, TableSession, RetailItem, RetailSale } from "./types";
 
 interface POSStore {
   // Tables
@@ -264,3 +259,56 @@ export const usePOSStore = create<POSStore>()(
     }
   )
 );
+
+// --- Simple JSON-file sync via Next.js API (/api/state) ---
+// Loads initial state from the server and pushes local changes (debounced).
+if (typeof window !== "undefined") {
+  (function () {
+    let applyingRemote = false;
+    let pushTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const fetchInitial = async () => {
+      try {
+        const res = await fetch("/api/state");
+        if (!res.ok) return;
+        const data = await res.json();
+        applyingRemote = true;
+        usePOSStore.setState((s) => ({
+          tables: data.tables && data.tables.length ? data.tables : s.tables,
+          sessions: data.sessions || s.sessions,
+          retailItems: data.retailItems || s.retailItems,
+          retailSales: data.retailSales || s.retailSales,
+          hourlyRate: data.hourlyRate ?? s.hourlyRate,
+        }));
+        setTimeout(() => (applyingRemote = false), 300);
+      } catch (e) {
+        console.warn("Failed to load /api/state:", e);
+      }
+    };
+
+    fetchInitial();
+
+    usePOSStore.subscribe((state) => {
+      if (applyingRemote) return;
+      if (pushTimer) clearTimeout(pushTimer);
+      pushTimer = setTimeout(async () => {
+        try {
+          await fetch("/api/state", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tables: state.tables,
+              sessions: state.sessions,
+              retailItems: state.retailItems,
+              retailSales: state.retailSales,
+              hourlyRate: state.hourlyRate,
+              updatedAt: Date.now(),
+            }),
+          });
+        } catch (err) {
+          console.warn("Failed to write /api/state:", err);
+        }
+      }, 500);
+    });
+  })();
+}
