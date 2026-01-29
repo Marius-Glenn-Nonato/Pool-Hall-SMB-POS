@@ -154,11 +154,11 @@ export function RetailPOS() {
               >
                 <CardContent className="p-4">
                   <h3 className="font-medium text-sm truncate">{item.name}</h3>
-                  <div className="flex items-center justify-between mt-2">
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
                     <span className="text-lg font-bold text-primary">
                       ₱{item.price.toFixed(2)}
                     </span>
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant="secondary" className="text-xs whitespace-nowrap">
                       {item.stock} left
                     </Badge>
                   </div>
