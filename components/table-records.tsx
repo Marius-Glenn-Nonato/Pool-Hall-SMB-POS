@@ -72,15 +72,34 @@ export function TableRecords() {
   };
 
   const exportToExcel = () => {
-    const data = filteredSessions.map((s) => ({
+    const grandTotalRevenue = filteredSessions.reduce(
+      (sum, s) => sum + (s.totalAmount || 0),
+      0
+    );
+
+
+      const data = filteredSessions.map((s) => ({
       "Table": s.tableName,
       "Start Time": new Date(s.startTime).toLocaleString(),
       "End Time": s.endTime ? new Date(s.endTime).toLocaleString() : "—",
       "Duration": formatDuration(s.startTime, s.endTime),
-      "Session Type": s.sessionType === "fixed" ? `Fixed (${s.fixedDuration}h)` : "Open",
+      "Session Type":
+        s.sessionType === "fixed"
+          ? `Fixed (${s.fixedDuration}h)`
+          : "Open",
       "Rate (₱/hr)": s.hourlyRate,
       "Total (₱)": s.totalAmount?.toFixed(2) || "—",
-    }));
+      }));
+
+    data.push({
+      "Table": "",
+      "Start Time": "",
+      "End Time": "",
+      "Duration": "",
+      "Session Type": "",
+      "Rate (₱/hr)": "GRAND TOTAL REVENUE",
+      "Total (₱)": grandTotalRevenue.toFixed(2),
+    });
 
     const ws = utils.json_to_sheet(data);
     const wb = utils.book_new();
@@ -95,6 +114,7 @@ export function TableRecords() {
       { wch: 15 },
       { wch: 12 },
       { wch: 12 },
+      { wch: 18 }, // TOTAL REVENUE
     ];
 
     writeFile(wb, `table-records-${new Date().toISOString().split("T")[0]}.xlsx`);
@@ -186,10 +206,10 @@ export function TableRecords() {
                         : "Open"}
                     </TableCell>
                     <TableCell className="text-right">
-                      ₱{session.hourlyRate}/hr
+                      ${session.hourlyRate}/hr
                     </TableCell>
                     <TableCell className="text-right font-medium text-success">
-                      ₱{session.totalAmount?.toFixed(2) || "—"}
+                      ${session.totalAmount?.toFixed(2) || "—"}
                     </TableCell>
                   </TableRow>
                 ))
