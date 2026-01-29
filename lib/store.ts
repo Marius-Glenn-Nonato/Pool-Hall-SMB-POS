@@ -260,8 +260,8 @@ export const usePOSStore = create<POSStore>()(
   )
 );
 
-// --- Simple JSON-file sync via Next.js API (/api/state) ---
-// Loads initial state from the server and pushes local changes (debounced).
+// --- Vercel KV (Redis) sync ---
+// Loads initial state from Vercel KV and pushes local changes (debounced).
 if (typeof window !== "undefined") {
   (function () {
     let applyingRemote = false;
@@ -269,7 +269,7 @@ if (typeof window !== "undefined") {
 
     const fetchInitial = async () => {
       try {
-        const res = await fetch("/api/state");
+        const res = await fetch("/api/kv-state");
         if (!res.ok) return;
         const data = await res.json();
         applyingRemote = true;
@@ -282,7 +282,7 @@ if (typeof window !== "undefined") {
         }));
         setTimeout(() => (applyingRemote = false), 300);
       } catch (e) {
-        console.warn("Failed to load /api/state:", e);
+        console.warn("Failed to load /api/kv-state:", e);
       }
     };
 
@@ -293,7 +293,7 @@ if (typeof window !== "undefined") {
       if (pushTimer) clearTimeout(pushTimer);
       pushTimer = setTimeout(async () => {
         try {
-          await fetch("/api/state", {
+          await fetch("/api/kv-state", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -306,7 +306,7 @@ if (typeof window !== "undefined") {
             }),
           });
         } catch (err) {
-          console.warn("Failed to write /api/state:", err);
+          console.warn("Failed to write /api/kv-state:", err);
         }
       }, 500);
     });

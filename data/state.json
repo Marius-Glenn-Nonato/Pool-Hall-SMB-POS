@@ -1,8 +1,126 @@
 {
-  "tables": [],
+  "tables": [
+    {
+      "id": "6370aa27-84bd-49f6-bad1-950e819fd67a",
+      "name": "Table 1",
+      "status": "available",
+      "position": {
+        "x": 1543.6666259765625,
+        "y": 931.2222290039062
+      },
+      "size": {
+        "width": 400,
+        "height": 237.77783203125
+      }
+    },
+    {
+      "id": "table-1769693730441-scu54ngno",
+      "name": "Table 2",
+      "status": "available",
+      "position": {
+        "x": 1786.888916015625,
+        "y": 386.6667022705078
+      },
+      "size": {
+        "width": 225.5555419921875,
+        "height": 300
+      }
+    },
+    {
+      "id": "table-1769694092651-8yk2v4007",
+      "name": "Table 3",
+      "status": "available",
+      "position": {
+        "x": 1511.0001220703125,
+        "y": 387.888916015625
+      },
+      "size": {
+        "width": 214.22216796875,
+        "height": 297.77777099609375
+      }
+    },
+    {
+      "id": "table-1769694102719-0nshidqja",
+      "name": "Table 4",
+      "status": "available",
+      "position": {
+        "x": 1023.888916015625,
+        "y": 882.1111450195312
+      },
+      "size": {
+        "width": 224,
+        "height": 300
+      }
+    },
+    {
+      "id": "table-1769694115751-0ra1fadpy",
+      "name": "Table 5",
+      "status": "available",
+      "position": {
+        "x": 698.3333129882812,
+        "y": 887.2222290039062
+      },
+      "size": {
+        "width": 211.22222900390625,
+        "height": 300
+      }
+    },
+    {
+      "id": "table-1769694125535-a0f3sgnin",
+      "name": "Table 6",
+      "status": "available",
+      "position": {
+        "x": 393.4444580078125,
+        "y": 892
+      },
+      "size": {
+        "width": 212.888916015625,
+        "height": 300
+      }
+    },
+    {
+      "id": "table-1769694161063-s71t280jn",
+      "name": "Table 8",
+      "status": "available",
+      "position": {
+        "x": 935.888916015625,
+        "y": 463.4443664550781
+      },
+      "size": {
+        "width": 315,
+        "height": 184
+      }
+    },
+    {
+      "id": "table-1769694180885-p44eueo19",
+      "name": "Table 9",
+      "status": "available",
+      "position": {
+        "x": 335,
+        "y": 58
+      },
+      "size": {
+        "width": 224,
+        "height": 300
+      }
+    },
+    {
+      "id": "table-1769694188558-v62bym0pm",
+      "name": "Table 10",
+      "status": "available",
+      "position": {
+        "x": 708.3333129882812,
+        "y": 53.77778625488281
+      },
+      "size": {
+        "width": 226.888916015625,
+        "height": 300
+      }
+    }
+  ],
   "sessions": [],
   "retailItems": [],
   "retailSales": [],
   "hourlyRate": 15,
-  "updatedAt": 1769702115683
+  "updatedAt": 1769702881096
 }
