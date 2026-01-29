@@ -456,18 +456,6 @@ export function TableFloor() {
                 position: "relative",
               }}
             >
-              {/* Grid Pattern */}
-              <div
-                className="absolute inset-0 opacity-10 pointer-events-none"
-                style={{
-                  backgroundImage: `
-                    linear-gradient(to right, currentColor 1px, transparent 1px),
-                    linear-gradient(to bottom, currentColor 1px, transparent 1px)
-                  `,
-                  backgroundSize: "50px 50px",
-                }}
-              />
-
               {tables.map((table) => (
                 <BilliardTableCard
                   key={table.id}
