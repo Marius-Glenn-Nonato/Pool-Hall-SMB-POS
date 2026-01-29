@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CircleIcon, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 export function SignIn() {
   const { login } = useAuthStore();
@@ -40,9 +40,11 @@ export function SignIn() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
-            <CircleIcon className="w-8 h-8 text-primary" />
-          </div>
+          <img 
+            src="/smb.jfif" 
+            alt="Logo" 
+            className="w-120 h-70 object-contain mx-auto mb-6"
+          />
           <h1 className="text-2xl font-bold text-foreground">Pool Hall POS</h1>
           <p className="text-muted-foreground mt-1">Billiards Management System</p>
         </div>

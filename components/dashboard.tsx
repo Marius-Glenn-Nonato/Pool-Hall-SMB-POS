@@ -49,11 +49,22 @@ export function Dashboard() {
       {/* Sidebar */}
       <aside className="w-20 lg:w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
         <div className="p-4 border-b border-sidebar-border">
-          <h1 className="text-xl font-bold text-sidebar-foreground hidden lg:block">
-            Pool Hall POS
-          </h1>
+          <div className="hidden lg:flex items-center gap-3">
+            <img 
+              src="/smb.jfif" 
+              alt="Logo" 
+              className="w-18 h-10 object-contain"
+            />
+            <h1 className="text-xl font-bold text-sidebar-foreground">
+              Pool Hall POS
+            </h1>
+          </div>
           <div className="lg:hidden flex justify-center">
-            <span className="text-2xl font-bold text-primary">PH</span>
+            <img 
+              src="/smb.jfif" 
+              alt="Logo" 
+              className="w-8 h-8 object-contain"
+            />
           </div>
         </div>
 
