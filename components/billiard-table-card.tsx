@@ -25,6 +25,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
+const flashStyle = `
+  @keyframes flash-red {
+    0%, 100% { border-color: rgb(239, 68, 68); }
+    50% { border-color: rgb(220, 38, 38); }
+  }
+  .animate-flash-red {
+    animation: flash-red 0.6s infinite;
+  }
+`;
+
 interface BilliardTableCardProps {
   table: BilliardTable;
   onSelect: () => void;
@@ -94,13 +104,21 @@ export function BilliardTableCard({
     closed: "bg-destructive",
   };
 
+  // Check if fixed session has exceeded its duration
+  const isExceeded =
+    table.status === "running" &&
+    table.currentSession?.sessionType === "fixed" &&
+    table.currentSession?.fixedDuration &&
+    elapsed > table.currentSession.fixedDuration * 3600000;
+
   return (
     <>
+      <style>{flashStyle}</style>
       <Card
         className={cn(
           "absolute cursor-pointer transition-all select-none flex flex-col",
           "border-2 hover:shadow-lg",
-          statusColors[table.status],
+          isExceeded ? "border-destructive bg-destructive/20 animate-flash-red" : statusColors[table.status],
           (isDragging || isResizing) && "shadow-xl z-50",
           isDragging && "scale-105",
           !isLocked && "cursor-move"

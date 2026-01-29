@@ -16,9 +16,95 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Plus, Lock, Unlock } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { BilliardTable } from "@/lib/types";
 
+// Mobile table row component
+function MobileTableRow({ table, onSelect }: { table: BilliardTable; onSelect: () => void }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (table.status === "running" && table.currentSession) {
+      const startTime = new Date(table.currentSession.startTime).getTime();
+      const interval = setInterval(() => {
+        setElapsed(Date.now() - startTime);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+    setElapsed(0);
+  }, [table.status, table.currentSession]);
+
+  const getStatusBgColor = (status: string) => {
+    switch (status) {
+      case "running":
+        return "bg-warning/10";
+      case "closed":
+        return "bg-destructive/10";
+      default:
+        return "bg-success/10";
+    }
+  };
+
+  const getStatusTextColor = (status: string) => {
+    switch (status) {
+      case "running":
+        return "text-warning";
+      case "closed":
+        return "text-destructive";
+      default:
+        return "text-success";
+    }
+  };
+
+  function formatDuration(ms: number): string {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  }
+
+  return (
+    <div
+      onClick={onSelect}
+      className={`p-3 rounded-lg border border-border cursor-pointer transition-all hover:shadow-md ${getStatusBgColor(
+        table.status
+      )}`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <div className="font-semibold text-2xl text-card-foreground">
+            {table.name}
+          </div>
+          <div className={`text-xs font-medium capitalize ${getStatusTextColor(
+            table.status
+          )}`}>
+            {table.status}
+          </div>
+        </div>
+        <div className="text-right">
+          {table.status === "running" && table.currentSession ? (
+            <div className="space-y-1">
+              <div className="text-lg font-mono font-bold text-warning">
+                {formatDuration(elapsed)}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                ₱{((elapsed / 3600000) * table.currentSession.hourlyRate).toFixed(2)}
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">-</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function TableFloor() {
+  const isMobile = useIsMobile();
   const { tables, addTable, updateTablePosition, updateTableSize } = usePOSStore();
   const [selectedTable, setSelectedTable] = useState<BilliardTable | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -306,70 +392,100 @@ export function TableFloor() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant={isLocked ? "outline" : "default"}
-            size="sm"
-            onClick={() => setIsLocked(!isLocked)}
+          {!isMobile && (
+            <Button
+              variant={isLocked ? "outline" : "default"}
+              size="sm"
+              onClick={() => setIsLocked(!isLocked)}
+              className="gap-2"
+            >
+              {isLocked ? (
+                <>
+                  <Lock className="h-4 w-4" /> Locked
+                </>
+              ) : (
+                <>
+                  <Unlock className="h-4 w-4" /> Unlocked
+                </>
+              )}
+            </Button>
+          )}
+          <Button 
+            size="sm" 
+            onClick={() => setIsAddDialogOpen(true)} 
             className="gap-2"
+            disabled={isMobile}
           >
-            {isLocked ? (
-              <>
-                <Lock className="h-4 w-4" /> Locked
-              </>
-            ) : (
-              <>
-                <Unlock className="h-4 w-4" /> Unlocked
-              </>
-            )}
-          </Button>
-          <Button size="sm" onClick={() => setIsAddDialogOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" /> Add Table
           </Button>
         </div>
       </header>
 
-      {/* Floor Grid */}
-      <div
-        ref={floorRef}
-        className="flex-1 relative bg-background overflow-y-auto overflow-x-auto"
-        style={{ minHeight: "500px", position: "relative" }}
-      >
-        {/* Inner scrollable container with fixed minimum width */}
-        <div
-          style={{
-            minWidth: "100%",
-            minHeight: "100%",
-            position: "relative",
-          }}
-        >
-          {/* Grid Pattern */}
-          <div
-            className="absolute inset-0 opacity-10 pointer-events-none"
-            style={{
-              backgroundImage: `
-                linear-gradient(to right, currentColor 1px, transparent 1px),
-                linear-gradient(to bottom, currentColor 1px, transparent 1px)
-              `,
-              backgroundSize: "50px 50px",
-            }}
-          />
-
-        {tables.map((table) => (
-          <BilliardTableCard
-            key={table.id}
-            table={table}
-            onSelect={() => setSelectedTable(table)}
-            onMouseDown={(e) => handleMouseDown(e, table.id, table.position)}
-            onResizeStart={(e) => handleResizeStart(e, table.id, table.size)}
-            onTouchStart={(e) => handleTouchStart(e, table.id, table.position)}
-            onTouchResizeStart={(e) => handleTouchResizeStart(e, table.id, table.size)}
-            isDragging={draggingId === table.id}
-            isResizing={resizingId === table.id}
-            isLocked={isLocked}
-          />
-        ))}
+      {/* Mobile Table View */}
+      {isMobile ? (
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-2">
+            {tables.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">No tables yet</div>
+            ) : (
+              <div className="space-y-2">
+                {tables.map((table) => (
+                  <MobileTableRow
+                    key={table.id}
+                    table={table}
+                    onSelect={() => setSelectedTable(table)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Desktop Floor Grid */}
+          <div
+            ref={floorRef}
+            className="flex-1 relative bg-background overflow-y-auto overflow-x-auto"
+            style={{ minHeight: "500px", position: "relative" }}
+          >
+            {/* Inner scrollable container with fixed minimum width */}
+            <div
+              style={{
+                minWidth: "100%",
+                minHeight: "100%",
+                position: "relative",
+              }}
+            >
+              {/* Grid Pattern */}
+              <div
+                className="absolute inset-0 opacity-10 pointer-events-none"
+                style={{
+                  backgroundImage: `
+                    linear-gradient(to right, currentColor 1px, transparent 1px),
+                    linear-gradient(to bottom, currentColor 1px, transparent 1px)
+                  `,
+                  backgroundSize: "50px 50px",
+                }}
+              />
+
+              {tables.map((table) => (
+                <BilliardTableCard
+                  key={table.id}
+                  table={table}
+                  onSelect={() => setSelectedTable(table)}
+                  onMouseDown={(e) => handleMouseDown(e, table.id, table.position)}
+                  onResizeStart={(e) => handleResizeStart(e, table.id, table.size)}
+                  onTouchStart={(e) => handleTouchStart(e, table.id, table.position)}
+                  onTouchResizeStart={(e) => handleTouchResizeStart(e, table.id, table.size)}
+                  isDragging={draggingId === table.id}
+                  isResizing={resizingId === table.id}
+                  isLocked={isLocked}
+                />
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Session Dialog */}
       {selectedTable && (
