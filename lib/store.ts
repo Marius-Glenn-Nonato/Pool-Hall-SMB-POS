@@ -1,0 +1,266 @@
+"use client";
+
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import type {
+  BilliardTable,
+  TableSession,
+  RetailItem,
+  RetailSale,
+} from "./types";
+
+interface POSStore {
+  // Tables
+  tables: BilliardTable[];
+  addTable: (name: string) => void;
+  removeTable: (id: string) => void;
+  renameTable: (id: string, name: string) => void;
+  updateTablePosition: (id: string, position: { x: number; y: number }) => void;
+  updateTableSize: (id: string, size: { width: number; height: number }) => void;
+  setTableStatus: (
+    id: string,
+    status: "available" | "running" | "closed"
+  ) => void;
+
+  // Sessions
+  sessions: TableSession[];
+  hourlyRate: number;
+  setHourlyRate: (rate: number) => void;
+  startSession: (
+    tableId: string,
+    sessionType: "fixed" | "open",
+    fixedDuration?: number
+  ) => void;
+  endSession: (tableId: string) => void;
+  updateFixedDuration: (tableId: string, newDuration: number) => void;
+
+  // Retail
+  retailItems: RetailItem[];
+  addRetailItem: (item: Omit<RetailItem, "id">) => void;
+  updateRetailItem: (id: string, item: Partial<RetailItem>) => void;
+  removeRetailItem: (id: string) => void;
+
+  // Retail Sales
+  retailSales: RetailSale[];
+  addRetailSale: (itemId: string, quantity: number) => void;
+}
+
+export const usePOSStore = create<POSStore>()(
+  persist(
+    (set, get) => ({
+      // Initial tables
+      tables: [
+        {
+          id: "table-1",
+          name: "Table 1",
+          status: "available",
+          position: { x: 50, y: 50 },
+          size: { width: 176, height: 140 },
+        },
+        {
+          id: "table-2",
+          name: "Table 2",
+          status: "available",
+          position: { x: 250, y: 50 },
+          size: { width: 176, height: 140 },
+        },
+        {
+          id: "table-3",
+          name: "Table 3",
+          status: "available",
+          position: { x: 450, y: 50 },
+          size: { width: 176, height: 140 },
+        },
+        {
+          id: "table-4",
+          name: "Table 4",
+          status: "available",
+          position: { x: 50, y: 200 },
+          size: { width: 176, height: 140 },
+        },
+      ],
+
+      addTable: (name) =>
+  set((state) => ({
+    tables: [
+      ...state.tables,
+      {
+        id: `table-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name,
+        status: "available",
+        position: { x: 50, y: 50 },
+        size: { width: 180, height: 140 }, // ✅ REQUIRED
+      },
+    ],
+  })),
+
+      removeTable: (id) =>
+        set((state) => ({
+          tables: state.tables.filter((t) => t.id !== id),
+        })),
+
+      renameTable: (id, name) =>
+        set((state) => ({
+          tables: state.tables.map((t) => (t.id === id ? { ...t, name } : t)),
+        })),
+
+      updateTablePosition: (id, position) =>
+        set((state) => ({
+          tables: state.tables.map((t) =>
+            t.id === id ? { ...t, position } : t
+          ),
+        })),
+
+      updateTableSize: (id, size) =>
+        set((state) => ({
+          tables: state.tables.map((t) =>
+            t.id === id ? { ...t, size } : t
+          ),
+        })),
+
+      setTableStatus: (id, status) =>
+        set((state) => ({
+          tables: state.tables.map((t) => (t.id === id ? { ...t, status } : t)),
+        })),
+
+      // Sessions
+      sessions: [],
+      hourlyRate: 15,
+
+      setHourlyRate: (rate) => set({ hourlyRate: rate }),
+
+      startSession: (tableId, sessionType, fixedDuration) => {
+        const { tables, hourlyRate } = get();
+        const table = tables.find((t) => t.id === tableId);
+        if (!table) return;
+
+        const session: TableSession = {
+          id: `session-${Date.now()}`,
+          tableId,
+          tableName: table.name,
+          startTime: new Date(),
+          sessionType,
+          fixedDuration,
+          hourlyRate,
+        };
+
+        set((state) => ({
+          tables: state.tables.map((t) =>
+            t.id === tableId
+              ? { ...t, status: "running" as const, currentSession: session }
+              : t
+          ),
+        }));
+      },
+
+      endSession: (tableId) => {
+        const { tables } = get();
+        const table = tables.find((t) => t.id === tableId);
+        if (!table?.currentSession) return;
+
+        const session = table.currentSession;
+        const endTime = new Date();
+        
+        // For fixed sessions, charge the full fixed duration
+        // For open sessions, calculate based on actual time used
+        let totalAmount: number;
+        if (session.sessionType === "fixed" && session.fixedDuration) {
+          totalAmount = session.fixedDuration * session.hourlyRate;
+        } else {
+          const durationMs = endTime.getTime() - new Date(session.startTime).getTime();
+          const durationHours = durationMs / (1000 * 60 * 60);
+          totalAmount = Math.ceil(durationHours * 4) / 4 * session.hourlyRate; // Round to 15 min
+        }
+
+        const completedSession: TableSession = {
+          ...session,
+          endTime,
+          totalAmount,
+        };
+
+        set((state) => ({
+          tables: state.tables.map((t) =>
+            t.id === tableId
+              ? { ...t, status: "available" as const, currentSession: undefined }
+              : t
+          ),
+          sessions: [...state.sessions, completedSession],
+        }));
+      },
+
+      updateFixedDuration: (tableId, newDuration) =>
+        set((state) => ({
+          tables: state.tables.map((t) =>
+            t.id === tableId && t.currentSession
+              ? {
+                  ...t,
+                  currentSession: {
+                    ...t.currentSession,
+                    fixedDuration: newDuration,
+                  },
+                }
+              : t
+          ),
+        })),
+
+      // Retail Items
+      retailItems: [
+        { id: "item-1", name: "Coca-Cola", price: 3.5, category: "Drinks", stock: 50 },
+        { id: "item-2", name: "Water Bottle", price: 2.0, category: "Drinks", stock: 100 },
+        { id: "item-3", name: "Energy Drink", price: 4.5, category: "Drinks", stock: 30 },
+        { id: "item-4", name: "Chips", price: 2.5, category: "Snacks", stock: 40 },
+        { id: "item-5", name: "Candy Bar", price: 1.5, category: "Snacks", stock: 60 },
+        { id: "item-6", name: "Cigarettes", price: 12.0, category: "Tobacco", stock: 25 },
+      ],
+
+      addRetailItem: (item) =>
+        set((state) => ({
+          retailItems: [
+            ...state.retailItems,
+            { ...item, id: `item-${Date.now()}` },
+          ],
+        })),
+
+      updateRetailItem: (id, item) =>
+        set((state) => ({
+          retailItems: state.retailItems.map((i) =>
+            i.id === id ? { ...i, ...item } : i
+          ),
+        })),
+
+      removeRetailItem: (id) =>
+        set((state) => ({
+          retailItems: state.retailItems.filter((i) => i.id !== id),
+        })),
+
+      // Retail Sales
+      retailSales: [],
+
+      addRetailSale: (itemId, quantity) => {
+        const { retailItems } = get();
+        const item = retailItems.find((i) => i.id === itemId);
+        if (!item || item.stock < quantity) return;
+
+        const sale: RetailSale = {
+          id: `sale-${Date.now()}`,
+          itemId,
+          itemName: item.name,
+          quantity,
+          unitPrice: item.price,
+          totalPrice: item.price * quantity,
+          timestamp: new Date(),
+        };
+
+        set((state) => ({
+          retailSales: [...state.retailSales, sale],
+          retailItems: state.retailItems.map((i) =>
+            i.id === itemId ? { ...i, stock: i.stock - quantity } : i
+          ),
+        }));
+      },
+    }),
+    {
+      name: "pool-hall-pos",
+    }
+  )
+);
