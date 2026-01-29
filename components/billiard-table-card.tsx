@@ -98,7 +98,7 @@ export function BilliardTableCard({
     <>
       <Card
         className={cn(
-          "absolute cursor-pointer transition-all select-none",
+          "absolute cursor-pointer transition-all select-none flex flex-col",
           "border-2 hover:shadow-lg",
           statusColors[table.status],
           (isDragging || isResizing) && "shadow-xl z-50",
@@ -122,7 +122,7 @@ export function BilliardTableCard({
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-3 border-b border-border">
+        <div className="relative z-10 flex items-center justify-between p-3 border-b border-border">
           <div className="flex items-center gap-2">
             <div className={cn("w-2 h-2 rounded-full", statusDotColors[table.status])} />
             <span className="font-semibold text-sm text-card-foreground">{table.name}</span>
@@ -177,9 +177,9 @@ export function BilliardTableCard({
         </div>
 
         {/* Body */}
-        <div className="p-3 flex-1 flex flex-col justify-center overflow-hidden">
+        <div className="p-3 flex-1 relative flex flex-col justify-center min-h-0">
           {table.status === "running" && table.currentSession ? (
-            <div className="space-y-1">
+            <div className="space-y-1 relative z-20">
               <div className="text-xl font-mono font-bold text-warning text-center truncate">
                 {formatDuration(elapsed)}
               </div>
