@@ -39,7 +39,7 @@ function MobileTableRow({ table, onSelect }: { table: BilliardTable; onSelect: (
       case "running":
         return "bg-warning/10";
       case "closed":
-        return "bg-destructive/10";
+        return table.currentSession ? "bg-destructive/10" : "bg-muted/10";
       default:
         return "bg-success/10";
     }
@@ -50,7 +50,7 @@ function MobileTableRow({ table, onSelect }: { table: BilliardTable; onSelect: (
       case "running":
         return "text-warning";
       case "closed":
-        return "text-destructive";
+        return table.currentSession ? "text-destructive" : "text-muted-foreground";
       default:
         return "text-success";
     }
@@ -64,6 +64,15 @@ function MobileTableRow({ table, onSelect }: { table: BilliardTable; onSelect: (
     return `${hours.toString().padStart(2, "0")}:${minutes
       .toString()
       .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  }
+
+  function calculateAmount(elapsedMs: number, sessionType: "open" | "fixed", fixedDuration: number | undefined, hourlyRate: number): number {
+    if (sessionType === "fixed" && fixedDuration) {
+      return fixedDuration * hourlyRate;
+    }
+    // For open sessions, round up to nearest quarter hour (15 minutes)
+    const durationHours = elapsedMs / (1000 * 60 * 60);
+    return Math.ceil(durationHours * 4) / 4 * hourlyRate;
   }
 
   return (
@@ -91,7 +100,19 @@ function MobileTableRow({ table, onSelect }: { table: BilliardTable; onSelect: (
                 {formatDuration(elapsed)}
               </div>
               <div className="text-xs text-muted-foreground">
-                ₱{((elapsed / 3600000) * table.currentSession.hourlyRate).toFixed(2)}
+                ₱{calculateAmount(elapsed, table.currentSession.sessionType, table.currentSession.fixedDuration, table.currentSession.hourlyRate).toFixed(2)}
+              </div>
+            </div>
+          ) : table.status === "closed" && table.currentSession ? (
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">TO PAY</div>
+              <div className="text-lg font-bold text-destructive">
+                ₱{calculateAmount(
+                  table.currentSession.endedElapsedMs ?? elapsed,
+                  table.currentSession.sessionType,
+                  table.currentSession.fixedDuration,
+                  table.currentSession.hourlyRate
+                ).toFixed(2)}
               </div>
             </div>
           ) : (

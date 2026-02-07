@@ -32,17 +32,29 @@ function formatDuration(ms: number): string {
     .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 }
 
-export function SessionDialog({ table, open, onClose }: SessionDialogProps) {
-  const { hourlyRate, startSession, endSession, updateFixedDuration } = usePOSStore();
+function calculateAmount(elapsedMs: number, sessionType: "open" | "fixed", fixedDuration: number | undefined, hourlyRate: number): number {
+  if (sessionType === "fixed" && fixedDuration) {
+    return fixedDuration * hourlyRate;
+  }
+  // For open sessions, round up to nearest quarter hour (15 minutes)
+  const durationHours = elapsedMs / (1000 * 60 * 60);
+  return Math.ceil(durationHours * 4) / 4 * hourlyRate;
+}
+
+export function SessionDialog({ table: initialTable, open, onClose }: SessionDialogProps) {
+  const { tables, hourlyRate, startSession, endSession, completePayment, updateFixedDuration } = usePOSStore();
   const [sessionType, setSessionType] = useState<"open" | "fixed">("open");
   const [fixedDuration, setFixedDuration] = useState("1");
   const [editingDuration, setEditingDuration] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
 
+  // Get the current table from store to ensure we have the latest data
+  const table = tables.find(t => t.id === initialTable.id) || initialTable;
   const isRunning = table.status === "running" && table.currentSession;
+  const isClosed = table.status === "closed" && table.currentSession;
 
   useEffect(() => {
-    if (isRunning && table.currentSession) {
+    if ((isRunning || isClosed) && table.currentSession) {
       const startTime = new Date(table.currentSession.startTime).getTime();
       setElapsed(Date.now() - startTime);
       const interval = setInterval(() => {
@@ -50,7 +62,7 @@ export function SessionDialog({ table, open, onClose }: SessionDialogProps) {
       }, 1000);
       return () => clearInterval(interval);
     }
-  }, [isRunning, table.currentSession]);
+  }, [isRunning, isClosed, table.currentSession]);
 
   const handleStartSession = () => {
     const duration = sessionType === "fixed" ? parseFloat(fixedDuration) : undefined;
@@ -59,13 +71,25 @@ export function SessionDialog({ table, open, onClose }: SessionDialogProps) {
   };
 
   const handleEndSession = () => {
-    endSession(table.id);
+    endSession(table.id, elapsed);
     onClose();
   };
 
-  const estimatedCost = isRunning && table.currentSession
-    ? (elapsed / 3600000) * table.currentSession.hourlyRate
-    : 0;
+  const handleConfirmPayment = () => {
+    completePayment(table.id);
+    onClose();
+  };
+
+  // Use frozen elapsed time for closed tables, live elapsed for running tables
+  const displayElapsed = isClosed && table.currentSession?.endedElapsedMs !== undefined 
+    ? table.currentSession.endedElapsedMs 
+    : elapsed;
+
+  // Calculate final amount for payment using the same logic as records
+  let finalAmount = 0;
+  if ((isRunning || isClosed) && table.currentSession) {
+    finalAmount = calculateAmount(displayElapsed, table.currentSession.sessionType, table.currentSession.fixedDuration, table.currentSession.hourlyRate);
+  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -85,7 +109,39 @@ export function SessionDialog({ table, open, onClose }: SessionDialogProps) {
           </DialogTitle>
         </DialogHeader>
 
-        {isRunning && table.currentSession ? (
+        {isClosed && table.currentSession ? (
+          // Payment Screen - shown when clicking a closed table
+          <div className="space-y-6 py-4">
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground mb-2">Total Due</p>
+              <p className="text-5xl font-bold text-primary">₱{finalAmount.toFixed(2)}</p>
+            </div>
+
+            <div className="space-y-3 bg-muted rounded-lg p-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Table</span>
+                <span className="font-medium">{table.name}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Time Started</span>
+                <span className="font-medium">
+                  {new Date(table.currentSession.startTime).toLocaleTimeString()}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Time Consumed</span>
+                <span className="font-medium">{formatDuration(displayElapsed)}</span>
+              </div>
+              {table.currentSession.sessionType === "fixed" && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Contract Duration</span>
+                  <span className="font-medium">{table.currentSession.fixedDuration}h</span>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : isRunning && table.currentSession ? (
+          // Running Session Screen
           <div className="space-y-6 py-4">
             {/* Timer Display */}
             <div className="text-center">
@@ -124,7 +180,7 @@ export function SessionDialog({ table, open, onClose }: SessionDialogProps) {
                   <span className="text-sm font-medium">Current Total</span>
                 </div>
                 <span className="text-2xl font-bold text-warning">
-                  ₱{estimatedCost.toFixed(2)}
+                  ₱{finalAmount.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -279,7 +335,11 @@ export function SessionDialog({ table, open, onClose }: SessionDialogProps) {
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          {isRunning ? (
+          {isClosed && table.currentSession ? (
+            <Button onClick={handleConfirmPayment} className="bg-green-600 hover:bg-green-700">
+              Pay ₱{finalAmount.toFixed(2)}
+            </Button>
+          ) : isRunning ? (
             <Button variant="destructive" onClick={handleEndSession}>
               End Session
             </Button>

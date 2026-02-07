@@ -21,6 +21,7 @@ export interface TableSession {
   fixedDuration?: number; // in hours
   hourlyRate: number;
   totalAmount?: number;
+  endedElapsedMs?: number; // elapsed time in ms when session was ended
 }
 
 export interface RetailItem {

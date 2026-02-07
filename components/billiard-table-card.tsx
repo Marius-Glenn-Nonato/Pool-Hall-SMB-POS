@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Play, Square, X, Edit2, Trash2 } from "lucide-react";
+import { MoreVertical, Play, Square, X, Edit2, Trash2, DollarSign } from "lucide-react";
 import type { BilliardTable } from "@/lib/types";
 import {
   Dialog,
@@ -27,11 +27,18 @@ import { Button } from "@/components/ui/button";
 
 const flashStyle = `
   @keyframes flash-red {
-    0%, 100% { border-color: rgb(239, 68, 68); }
-    50% { border-color: rgb(220, 38, 38); }
+    0%, 100% { border-color: rgb(239, 68, 68); background-color: rgba(239, 68, 68, 0.1); }
+    50% { border-color: rgb(220, 38, 38); background-color: rgba(220, 38, 38, 0.2); }
+  }
+  @keyframes flash-yellow {
+    0%, 100% { border-color: rgb(234, 179, 8); background-color: rgba(234, 179, 8, 0.1); }
+    50% { border-color: rgb(202, 138, 4); background-color: rgba(202, 138, 4, 0.2); }
   }
   .animate-flash-red {
     animation: flash-red 0.6s infinite;
+  }
+  .animate-flash-yellow {
+    animation: flash-yellow 0.8s infinite;
   }
 `;
 
@@ -56,6 +63,15 @@ function formatDuration(ms: number): string {
   return `${hours.toString().padStart(2, "0")}:${minutes
     .toString()
     .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function calculateAmount(elapsedMs: number, sessionType: "open" | "fixed", fixedDuration: number | undefined, hourlyRate: number): number {
+  if (sessionType === "fixed" && fixedDuration) {
+    return fixedDuration * hourlyRate;
+  }
+  // For open sessions, round up to nearest quarter hour (15 minutes)
+  const durationHours = elapsedMs / (1000 * 60 * 60);
+  return Math.ceil(durationHours * 4) / 4 * hourlyRate;
 }
 
 export function BilliardTableCard({
@@ -93,14 +109,14 @@ export function BilliardTableCard({
   };
 
   const statusColors = {
-    available: "border-success/50 bg-success/10",
-    running: "border-warning/50 bg-warning/10",
+    available: "border-blue-500/50 bg-blue-500/10",
+    running: "border-green-500/50 bg-green-500/10",
     closed: "border-destructive/50 bg-destructive/10",
   };
 
   const statusDotColors = {
-    available: "bg-success",
-    running: "bg-warning animate-pulse",
+    available: "bg-blue-500",
+    running: "bg-green-500 animate-pulse",
     closed: "bg-destructive",
   };
 
@@ -111,6 +127,16 @@ export function BilliardTableCard({
     table.currentSession?.fixedDuration &&
     elapsed > table.currentSession.fixedDuration * 3600000;
 
+  // Check if 5 mins or less remaining on fixed session
+  const timeRemaining =
+    table.status === "running" &&
+    table.currentSession?.sessionType === "fixed" &&
+    table.currentSession?.fixedDuration
+      ? table.currentSession.fixedDuration * 3600000 - elapsed
+      : null;
+
+  const isNearTimeLimit = timeRemaining !== null && timeRemaining > 0 && timeRemaining <= 5 * 60 * 1000;
+
   return (
     <>
       <style>{flashStyle}</style>
@@ -118,7 +144,13 @@ export function BilliardTableCard({
         className={cn(
           "absolute cursor-pointer transition-all select-none flex flex-col",
           "border-2 hover:shadow-lg",
-          isExceeded ? "border-destructive bg-destructive/20 animate-flash-red" : statusColors[table.status],
+          table.status === "closed" && table.currentSession
+            ? "border-destructive bg-destructive/20 animate-flash-red"
+            : isExceeded 
+            ? "border-destructive bg-destructive/20 animate-flash-red" 
+            : isNearTimeLimit 
+            ? "border-yellow-500 bg-yellow-500/20 animate-flash-yellow"
+            : statusColors[table.status],
           (isDragging || isResizing) && "shadow-xl z-50",
           isDragging && "scale-105",
           !isLocked && "cursor-move"
@@ -176,11 +208,16 @@ export function BilliardTableCard({
                   <X className="h-4 w-4 mr-2" /> Close Table
                 </DropdownMenuItem>
               )}
-              {table.status === "closed" && (
+              {table.status === "closed" && !table.currentSession && (
                 <DropdownMenuItem
                   onClick={() => setTableStatus(table.id, "available")}
                 >
                   <Play className="h-4 w-4 mr-2" /> Open Table
+                </DropdownMenuItem>
+              )}
+              {table.status === "closed" && table.currentSession && (
+                <DropdownMenuItem onClick={onSelect}>
+                  <DollarSign className="h-4 w-4 mr-2" /> Pay
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
@@ -207,7 +244,19 @@ export function BilliardTableCard({
                   ` (${table.currentSession.fixedDuration}h)`}
               </div>
               <div className="text-sm font-medium text-center text-card-foreground truncate">
-                ₱{((elapsed / 3600000) * table.currentSession.hourlyRate).toFixed(2)}
+                ₱{calculateAmount(elapsed, table.currentSession.sessionType, table.currentSession.fixedDuration, table.currentSession.hourlyRate).toFixed(2)}
+              </div>
+            </div>
+          ) : table.status === "closed" && table.currentSession ? (
+            <div className="space-y-1 relative z-20">
+              <div className="text-xs text-muted-foreground text-center truncate">TO PAY</div>
+              <div className="text-lg font-bold text-destructive text-center truncate">
+                ₱{calculateAmount(
+                  table.currentSession.endedElapsedMs ?? elapsed,
+                  table.currentSession.sessionType,
+                  table.currentSession.fixedDuration,
+                  table.currentSession.hourlyRate
+                ).toFixed(2)}
               </div>
             </div>
           ) : (

@@ -26,7 +26,8 @@ interface POSStore {
     sessionType: "fixed" | "open",
     fixedDuration?: number
   ) => void;
-  endSession: (tableId: string) => void;
+  endSession: (tableId: string, elapsedMs?: number) => void;
+  completePayment: (tableId: string) => void;
   updateFixedDuration: (tableId: string, newDuration: number) => void;
 
   // Retail
@@ -148,7 +149,30 @@ export const usePOSStore = create<POSStore>()(
         }));
       },
 
-      endSession: (tableId) => {
+      endSession: (tableId, elapsedMs) => {
+        const { tables } = get();
+        const table = tables.find((t) => t.id === tableId);
+        if (!table?.currentSession) return;
+
+        // Just set table to "closed" and keep currentSession for payment processing
+        // Store the elapsed time at the moment of closing
+        set((state) => ({
+          tables: state.tables.map((t) =>
+            t.id === tableId
+              ? {
+                  ...t,
+                  status: "closed" as const,
+                  currentSession: {
+                    ...t.currentSession!,
+                    endedElapsedMs: elapsedMs ?? 0,
+                  },
+                }
+              : t
+          ),
+        }));
+      },
+
+      completePayment: (tableId) => {
         const { tables } = get();
         const table = tables.find((t) => t.id === tableId);
         if (!table?.currentSession) return;
@@ -157,12 +181,13 @@ export const usePOSStore = create<POSStore>()(
         const endTime = new Date();
         
         // For fixed sessions, charge the full fixed duration
-        // For open sessions, calculate based on actual time used
+        // For open sessions, calculate based on actual time used (using the frozen elapsed time)
         let totalAmount: number;
         if (session.sessionType === "fixed" && session.fixedDuration) {
           totalAmount = session.fixedDuration * session.hourlyRate;
         } else {
-          const durationMs = endTime.getTime() - new Date(session.startTime).getTime();
+          // Use the endedElapsedMs that was captured when session ended
+          const durationMs = session.endedElapsedMs || 0;
           const durationHours = durationMs / (1000 * 60 * 60);
           totalAmount = Math.ceil(durationHours * 4) / 4 * session.hourlyRate; // Round to 15 min
         }
