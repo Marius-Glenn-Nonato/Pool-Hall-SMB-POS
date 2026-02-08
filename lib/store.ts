@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { BilliardTable, TableSession, RetailItem, RetailSale } from "./types";
+import type { BilliardTable, TableSession, RetailItem, RetailSale, Order, OrderItem } from "./types";
 
 interface POSStore {
   // Tables
@@ -39,6 +39,13 @@ interface POSStore {
   // Retail Sales
   retailSales: RetailSale[];
   addRetailSale: (itemId: string, quantity: number) => void;
+
+  // Orders
+  orders: Order[];
+  createOrder: (items: OrderItem[], notes?: string) => void;
+  editOrder: (orderId: string, items: OrderItem[], notes?: string) => void;
+  deleteOrder: (orderId: string) => void;
+  voidOrder: (orderId: string) => void;
 }
 
 export const usePOSStore = create<POSStore>()(
@@ -271,10 +278,164 @@ export const usePOSStore = create<POSStore>()(
           timestamp: new Date(),
         };
 
+        // Create order item and order simultaneously
+        const orderItem: OrderItem = {
+          itemId,
+          itemName: item.name,
+          quantity,
+          unitPrice: item.price,
+          totalPrice: item.price * quantity,
+        };
+
+        const order: Order = {
+          id: `order-${Date.now()}-${itemId}`,
+          items: [orderItem],
+          totalPrice: item.price * quantity,
+          timestamp: new Date(),
+          notes: "",
+          status: "completed",
+        };
+
         set((state) => ({
           retailSales: [...state.retailSales, sale],
+          orders: [...state.orders, order],
           retailItems: state.retailItems.map((i) =>
             i.id === itemId ? { ...i, stock: i.stock - quantity } : i
+          ),
+        }));
+      },
+
+      // Orders
+      orders: [],
+
+      createOrder: (items, notes) => {
+        const totalPrice = items.reduce((sum, item) => sum + item.totalPrice, 0);
+        const order: Order = {
+          id: `order-${Date.now()}`,
+          items,
+          totalPrice,
+          timestamp: new Date(),
+          notes,
+          status: "completed",
+        };
+
+        set((state) => ({
+          orders: [...state.orders, order],
+        }));
+      },
+
+      editOrder: (orderId, items, notes) => {
+        const totalPrice = items.reduce((sum, item) => sum + item.totalPrice, 0);
+        
+        set((state) => {
+          // Find the old order to get quantity differences
+          const oldOrder = state.orders.find((o) => o.id === orderId);
+          if (!oldOrder) return state;
+
+          // Calculate quantity changes for each item
+          const quantityChanges: Record<string, number> = {}; // itemId -> quantity delta
+          
+          oldOrder.items.forEach((oldItem) => {
+            const newItem = items.find((i) => i.itemId === oldItem.itemId);
+            const diff = (newItem?.quantity || 0) - oldItem.quantity;
+            if (diff !== 0) {
+              quantityChanges[oldItem.itemId] = diff;
+            }
+          });
+
+          // Update retail sales quantities
+          let updatedRetailSales = [...state.retailSales];
+          let updatedRetailItems = [...state.retailItems];
+
+          Object.entries(quantityChanges).forEach(([itemId, diff]) => {
+            // Find the retail sale for this item that matches the order timestamp
+            const saleIndex = updatedRetailSales.findIndex(
+              (sale) =>
+                sale.itemId === itemId &&
+                new Date(sale.timestamp).getTime() === new Date(oldOrder.timestamp).getTime()
+            );
+
+            if (saleIndex !== -1) {
+              const sale = updatedRetailSales[saleIndex];
+              const newQuantity = sale.quantity + diff;
+              const newTotalPrice = newQuantity * sale.unitPrice;
+
+              if (newQuantity > 0) {
+                updatedRetailSales[saleIndex] = {
+                  ...sale,
+                  quantity: newQuantity,
+                  totalPrice: newTotalPrice,
+                };
+              } else {
+                // Remove sale if quantity goes to 0
+                updatedRetailSales = updatedRetailSales.filter((_, i) => i !== saleIndex);
+              }
+
+              // Update inventory stock (reverse the quantity delta)
+              updatedRetailItems = updatedRetailItems.map((item) =>
+                item.id === itemId
+                  ? { ...item, stock: item.stock - diff }
+                  : item
+              );
+            }
+          });
+
+          return {
+            orders: state.orders.map((o) =>
+              o.id === orderId
+                ? {
+                    ...o,
+                    items,
+                    totalPrice,
+                    notes,
+                  }
+                : o
+            ),
+            retailSales: updatedRetailSales,
+            retailItems: updatedRetailItems,
+          };
+        });
+      },
+
+      deleteOrder: (orderId) => {
+        set((state) => {
+          const orderToDelete = state.orders.find((o) => o.id === orderId);
+          if (!orderToDelete) return state;
+
+          // Restore inventory stock and remove retail sales
+          let updatedRetailItems = [...state.retailItems];
+          let updatedRetailSales = [...state.retailSales];
+
+          orderToDelete.items.forEach((item) => {
+            // Find and remove the retail sale for this item
+            updatedRetailSales = updatedRetailSales.filter(
+              (sale) =>
+                !(
+                  sale.itemId === item.itemId &&
+                  new Date(sale.timestamp).getTime() === new Date(orderToDelete.timestamp).getTime()
+                )
+            );
+
+            // Restore stock
+            updatedRetailItems = updatedRetailItems.map((retailItem) =>
+              retailItem.id === item.itemId
+                ? { ...retailItem, stock: retailItem.stock + item.quantity }
+                : retailItem
+            );
+          });
+
+          return {
+            orders: state.orders.filter((o) => o.id !== orderId),
+            retailSales: updatedRetailSales,
+            retailItems: updatedRetailItems,
+          };
+        });
+      },
+
+      voidOrder: (orderId) => {
+        set((state) => ({
+          orders: state.orders.map((o) =>
+            o.id === orderId ? { ...o, status: "voided" } : o
           ),
         }));
       },
@@ -303,6 +464,7 @@ if (typeof window !== "undefined") {
           sessions: data.sessions || s.sessions,
           retailItems: data.retailItems || s.retailItems,
           retailSales: data.retailSales || s.retailSales,
+          orders: data.orders || s.orders,
           hourlyRate: data.hourlyRate ?? s.hourlyRate,
         }));
         setTimeout(() => (applyingRemote = false), 300);
@@ -326,6 +488,7 @@ if (typeof window !== "undefined") {
               sessions: state.sessions,
               retailItems: state.retailItems,
               retailSales: state.retailSales,
+              orders: state.orders,
               hourlyRate: state.hourlyRate,
               updatedAt: Date.now(),
             }),

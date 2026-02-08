@@ -6,6 +6,7 @@ import { useState } from "react";
 import { TableFloor } from "./table-floor";
 import { TableRecords } from "./table-records";
 import { RetailPOS } from "./retail-pos";
+import { OrderTracking } from "./order-tracking";
 import { RetailInventory } from "./retail-inventory";
 import { SalesAnalytics } from "./sales-analytics";
 import { Settings } from "./settings";
@@ -18,6 +19,7 @@ import {
   Settings as SettingsIcon,
   LogOut,
   User,
+  Truck,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
@@ -27,6 +29,7 @@ type View =
   | "floor"
   | "records"
   | "retail"
+  | "orders"
   | "inventory"
   | "analytics"
   | "settings";
@@ -35,6 +38,7 @@ const navItems: { id: View; label: string; icon: React.ReactNode }[] = [
   { id: "floor", label: "Floor", icon: <LayoutGrid className="h-5 w-5" /> },
   { id: "records", label: "Records", icon: <ClipboardList className="h-5 w-5" /> },
   { id: "retail", label: "Sales", icon: <ShoppingCart className="h-5 w-5" /> },
+  { id: "orders", label: "Orders", icon: <Truck className="h-5 w-5" /> },
   { id: "inventory", label: "Inventory", icon: <Package className="h-5 w-5" /> },
   { id: "analytics", label: "Analytics", icon: <BarChart3 className="h-5 w-5" /> },
   { id: "settings", label: "Settings", icon: <SettingsIcon className="h-5 w-5" /> },
@@ -119,6 +123,7 @@ export function Dashboard() {
         {currentView === "floor" && <TableFloor />}
         {currentView === "records" && <TableRecords />}
         {currentView === "retail" && <RetailPOS />}
+        {currentView === "orders" && <OrderTracking />}
         {currentView === "inventory" && <RetailInventory />}
         {currentView === "analytics" && <SalesAnalytics />}
         {currentView === "settings" && <Settings />}

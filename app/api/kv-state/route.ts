@@ -12,6 +12,7 @@ export async function GET() {
         sessions: [],
         retailItems: [],
         retailSales: [],
+        orders: [],
         hourlyRate: 15,
         updatedAt: Date.now(),
       };

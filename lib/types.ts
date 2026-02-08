@@ -42,6 +42,23 @@ export interface RetailSale {
   timestamp: Date;
 }
 
+export interface Order {
+  id: string;
+  items: OrderItem[];
+  totalPrice: number;
+  timestamp: Date;
+  notes?: string;
+  status: "completed" | "voided"; // completed or voided
+}
+
+export interface OrderItem {
+  itemId: string;
+  itemName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
 export interface DailySalesReport {
   date: string;
   totalTableRevenue: number;

@@ -47,6 +47,13 @@ export function TableRecords() {
         const sessionDate = new Date(s.startTime);
         return sessionDate.toDateString() === now.toDateString();
       });
+    } else if (dateFilter === "yesterday") {
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      filtered = filtered.filter((s) => {
+        const sessionDate = new Date(s.startTime);
+        return sessionDate.toDateString() === yesterday.toDateString();
+      });
     } else if (dateFilter === "week") {
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       filtered = filtered.filter((s) => new Date(s.startTime) >= weekAgo);
@@ -149,6 +156,7 @@ export function TableRecords() {
               <SelectContent>
                 <SelectItem value="all">All Time</SelectItem>
                 <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="yesterday">Yesterday</SelectItem>
                 <SelectItem value="week">This Week</SelectItem>
                 <SelectItem value="month">This Month</SelectItem>
               </SelectContent>
