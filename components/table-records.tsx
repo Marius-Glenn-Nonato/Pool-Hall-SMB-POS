@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { usePOSStore } from "@/lib/store";
+import { getDaysRemainingInMonth } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,6 +30,8 @@ export function TableRecords() {
   const { sessions } = usePOSStore();
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState("today");
+
+  const daysRemaining = getDaysRemainingInMonth();
 
   const filteredSessions = useMemo(() => {
     let filtered = [...sessions].reverse();
@@ -181,6 +184,13 @@ export function TableRecords() {
         <div className="text-2xl font-bold text-card-foreground">
           Total Sales = ₱{totalRevenue.toFixed(2)}
         </div>
+      </div>
+
+      {/* Month Ending Reminder */}
+      <div className="px-4 py-3 bg-muted/50 border-b border-border">
+        <p className="text-sm font-medium text-muted-foreground">
+          {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left in this month
+        </p>
       </div>
 
       {/* Table */}

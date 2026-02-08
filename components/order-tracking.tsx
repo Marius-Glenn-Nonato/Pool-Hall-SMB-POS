@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { usePOSStore } from "@/lib/store";
+import { getDaysRemainingInMonth } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,6 +39,8 @@ export function OrderTracking() {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [editedItems, setEditedItems] = useState<Order["items"] | null>(null);
+
+  const daysRemaining = getDaysRemainingInMonth();
 
   const filteredOrders = useMemo(() => {
     let filtered = [...orders].reverse();
@@ -175,6 +178,13 @@ export function OrderTracking() {
         <div className="text-2xl font-bold text-card-foreground">
           Total Sales = ₱{totalSales.toFixed(2)}
         </div>
+      </div>
+
+      {/* Month Ending Reminder */}
+      <div className="px-4 py-3 bg-muted/50 border-b border-border">
+        <p className="text-sm font-medium text-muted-foreground">
+          {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left in this month
+        </p>
       </div>
 
       {/* Table */}

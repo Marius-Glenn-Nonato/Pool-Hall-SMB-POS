@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { usePOSStore } from "@/lib/store";
+import { getDaysRemainingInMonth } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +25,8 @@ import { utils, writeFile } from "xlsx";
 
 export function SalesAnalytics() {
   const { sessions, retailSales, retailItems } = usePOSStore();
+  
+  const daysRemaining = getDaysRemainingInMonth();
 
   const analytics = useMemo(() => {
     const now = new Date();
@@ -180,6 +183,13 @@ export function SalesAnalytics() {
           </Button>
         </div>
       </header>
+
+      {/* Month Ending Reminder */}
+      <div className="px-4 py-3 bg-muted/50 border-b border-border">
+        <p className="text-sm font-medium text-muted-foreground">
+          {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left in this month
+        </p>
+      </div>
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-4 space-y-6">
