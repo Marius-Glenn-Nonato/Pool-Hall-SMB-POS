@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { usePOSStore } from "@/lib/store";
 import { getDaysRemainingInMonth } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,7 @@ import {
   ShoppingBag,
   Download,
   BarChart3,
+  Calendar,
 } from "lucide-react";
 import { utils, writeFile } from "xlsx";
 
@@ -171,7 +172,7 @@ export function SalesAnalytics() {
     <div className="h-full flex flex-col">
       {/* Header */}
       <header className="p-4 border-b border-border bg-card">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h2 className="text-2xl font-bold text-card-foreground">Analytics</h2>
             <p className="text-sm text-muted-foreground">

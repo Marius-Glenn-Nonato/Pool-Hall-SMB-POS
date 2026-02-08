@@ -6,8 +6,8 @@ const SESSIONS_KEY = 'pool-hall-pos:sessions';
 const ORDERS_KEY = 'pool-hall-pos:orders';
 const RETAIL_SALES_KEY = 'pool-hall-pos:retailSales';
 
-// TTL for sessions and orders: 74 days (2 months + 14 days) = 6,393,600 seconds
-const TEMP_DATA_TTL = 60 * 60 * 24 * 74;
+// TTL for sessions and orders: 100 days  
+const TEMP_DATA_TTL = 60 * 60 * 24 * 100;
 // TTL for persistent data: 10 years
 const PERSISTENT_TTL = 60 * 60 * 24 * 365 * 10;
 
