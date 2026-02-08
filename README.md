@@ -56,7 +56,7 @@ The application is deployed on **Vercel**, allowing instant access and seamless 
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/your-repo-name.git
+   https://github.com/Marius-Glenn-Nonato/Pool-Hall-SMB-POS
 2. **Install Dependencies**
    npm install
 3. **Run the development server**
