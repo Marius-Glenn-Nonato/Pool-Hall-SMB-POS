@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { usePOSStore } from "@/lib/store";
+import { getDaysRemainingInMonth } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,11 +20,14 @@ import {
   ShoppingBag,
   Download,
   BarChart3,
+  Calendar,
 } from "lucide-react";
 import { utils, writeFile } from "xlsx";
 
 export function SalesAnalytics() {
   const { sessions, retailSales, retailItems } = usePOSStore();
+  
+  const daysRemaining = getDaysRemainingInMonth();
 
   const analytics = useMemo(() => {
     const now = new Date();
@@ -168,7 +172,7 @@ export function SalesAnalytics() {
     <div className="h-full flex flex-col">
       {/* Header */}
       <header className="p-4 border-b border-border bg-card">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h2 className="text-2xl font-bold text-card-foreground">Analytics</h2>
             <p className="text-sm text-muted-foreground">
@@ -180,6 +184,13 @@ export function SalesAnalytics() {
           </Button>
         </div>
       </header>
+
+      {/* Month Ending Reminder */}
+      <div className="px-4 py-3 bg-muted/50 border-b border-border">
+        <p className="text-sm font-medium text-muted-foreground">
+          {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left in this month
+        </p>
+      </div>
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-4 space-y-6">

@@ -6,9 +6,12 @@ import { useState } from "react";
 import { TableFloor } from "./table-floor";
 import { TableRecords } from "./table-records";
 import { RetailPOS } from "./retail-pos";
+import { OrderTracking } from "./order-tracking";
 import { RetailInventory } from "./retail-inventory";
 import { SalesAnalytics } from "./sales-analytics";
 import { Settings } from "./settings";
+import { PasswordDialog } from "./password-dialog";
+import { useAuth } from "@/hooks/use-auth";
 import {
   LayoutGrid,
   ClipboardList,
@@ -18,6 +21,7 @@ import {
   Settings as SettingsIcon,
   LogOut,
   User,
+  Truck,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
@@ -27,6 +31,7 @@ type View =
   | "floor"
   | "records"
   | "retail"
+  | "orders"
   | "inventory"
   | "analytics"
   | "settings";
@@ -35,6 +40,7 @@ const navItems: { id: View; label: string; icon: React.ReactNode }[] = [
   { id: "floor", label: "Floor", icon: <LayoutGrid className="h-5 w-5" /> },
   { id: "records", label: "Records", icon: <ClipboardList className="h-5 w-5" /> },
   { id: "retail", label: "Sales", icon: <ShoppingCart className="h-5 w-5" /> },
+  { id: "orders", label: "Orders", icon: <Truck className="h-5 w-5" /> },
   { id: "inventory", label: "Inventory", icon: <Package className="h-5 w-5" /> },
   { id: "analytics", label: "Analytics", icon: <BarChart3 className="h-5 w-5" /> },
   { id: "settings", label: "Settings", icon: <SettingsIcon className="h-5 w-5" /> },
@@ -43,6 +49,51 @@ const navItems: { id: View; label: string; icon: React.ReactNode }[] = [
 export function Dashboard() {
   const [currentView, setCurrentView] = useState<View>("floor");
   const { currentUser, logout } = useAuthStore();
+  const { authenticate, isSessionValid } = useAuth();
+  const [pendingView, setPendingView] = useState<View | null>(null);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [authenticatedPage, setAuthenticatedPage] = useState<View | null>(null);
+
+  // Protected pages that require password
+  const protectedPages: View[] = ["records", "orders", "analytics"];
+
+  const handleNavClick = (viewId: View) => {
+    // If switching away from a protected page, lock it
+    if (protectedPages.includes(currentView) && currentView !== viewId) {
+      setAuthenticatedPage(null);
+    }
+
+    // Check if the target page is protected
+    if (protectedPages.includes(viewId)) {
+      // Check if already authenticated for this specific page
+      if (authenticatedPage === viewId && isSessionValid()) {
+        // Already authenticated for this page
+        setCurrentView(viewId);
+        return;
+      }
+
+      // Need to authenticate
+      setPendingView(viewId);
+      setShowPasswordDialog(true);
+      return;
+    }
+
+    // Unprotected page - just switch to it
+    setCurrentView(viewId);
+  };
+
+  const handlePasswordSubmit = (password: string) => {
+    if (authenticate(password)) {
+      // Password is correct - set as authenticated for this page
+      if (pendingView) {
+        setAuthenticatedPage(pendingView);
+        setCurrentView(pendingView);
+        setPendingView(null);
+      }
+      setShowPasswordDialog(false);
+    }
+    // If password is wrong, dialog stays open and shows error
+  };
 
   return (
     <div className="flex h-screen bg-background">
@@ -72,7 +123,7 @@ export function Dashboard() {
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => setCurrentView(item.id)}
+              onClick={() => handleNavClick(item.id)}
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-3 rounded-lg mb-1 transition-colors",
                 "hover:bg-sidebar-accent",
@@ -119,10 +170,28 @@ export function Dashboard() {
         {currentView === "floor" && <TableFloor />}
         {currentView === "records" && <TableRecords />}
         {currentView === "retail" && <RetailPOS />}
+        {currentView === "orders" && <OrderTracking />}
         {currentView === "inventory" && <RetailInventory />}
         {currentView === "analytics" && <SalesAnalytics />}
         {currentView === "settings" && <Settings />}
       </main>
+
+      {/* Password Dialog for Protected Pages */}
+      <PasswordDialog
+        isOpen={showPasswordDialog}
+        pageName={
+          pendingView === "records"
+            ? "Table Records"
+            : pendingView === "orders"
+              ? "Order Tracking"
+              : "Analytics"
+        }
+        onAuthenticate={handlePasswordSubmit}
+        onCancel={() => {
+          setShowPasswordDialog(false);
+          setPendingView(null);
+        }}
+      />
     </div>
   );
 }

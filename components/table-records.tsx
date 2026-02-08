@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { usePOSStore } from "@/lib/store";
+import { getDaysRemainingInMonth } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -28,7 +29,9 @@ import { utils, writeFile } from "xlsx";
 export function TableRecords() {
   const { sessions } = usePOSStore();
   const [search, setSearch] = useState("");
-  const [dateFilter, setDateFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("today");
+
+  const daysRemaining = getDaysRemainingInMonth();
 
   const filteredSessions = useMemo(() => {
     let filtered = [...sessions].reverse();
@@ -47,12 +50,26 @@ export function TableRecords() {
         const sessionDate = new Date(s.startTime);
         return sessionDate.toDateString() === now.toDateString();
       });
+    } else if (dateFilter === "yesterday") {
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      filtered = filtered.filter((s) => {
+        const sessionDate = new Date(s.startTime);
+        return sessionDate.toDateString() === yesterday.toDateString();
+      });
     } else if (dateFilter === "week") {
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       filtered = filtered.filter((s) => new Date(s.startTime) >= weekAgo);
     } else if (dateFilter === "month") {
       const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       filtered = filtered.filter((s) => new Date(s.startTime) >= monthAgo);
+    } else if (dateFilter === "lastMonth") {
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      filtered = filtered.filter((s) => {
+        const sessionDate = new Date(s.startTime);
+        return sessionDate >= lastMonthStart && sessionDate <= lastMonthEnd;
+      });
     }
 
     return filtered;
@@ -149,16 +166,33 @@ export function TableRecords() {
               <SelectContent>
                 <SelectItem value="all">All Time</SelectItem>
                 <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="yesterday">Yesterday</SelectItem>
                 <SelectItem value="week">This Week</SelectItem>
                 <SelectItem value="month">This Month</SelectItem>
+                <SelectItem value="lastMonth">Last Month</SelectItem>
               </SelectContent>
             </Select>
+
             <Button onClick={exportToExcel} className="gap-2">
               <Download className="h-4 w-4" /> Export
             </Button>
           </div>
         </div>
       </header>
+
+      {/* Total Sales Display */}
+      <div className="px-4 py-3 bg-muted/50 border-b border-border">
+        <div className="text-2xl font-bold text-card-foreground">
+          Total Sales = ₱{totalRevenue.toFixed(2)}
+        </div>
+      </div>
+
+      {/* Month Ending Reminder */}
+      <div className="px-4 py-3 bg-muted/50 border-b border-border">
+        <p className="text-sm font-medium text-muted-foreground">
+          {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left in this month
+        </p>
+      </div>
 
       {/* Table */}
       <div className="flex-1 overflow-auto p-4">
