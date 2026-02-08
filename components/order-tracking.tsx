@@ -34,7 +34,7 @@ import type { Order } from "@/lib/types";
 export function OrderTracking() {
   const { orders, deleteOrder, voidOrder, editOrder } = usePOSStore();
   const [search, setSearch] = useState("");
-  const [dateFilter, setDateFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("today");
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [editedItems, setEditedItems] = useState<Order["items"] | null>(null);
@@ -76,10 +76,19 @@ export function OrderTracking() {
       const thirtyDaysAgo = new Date(now);
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       filtered = filtered.filter((o) => new Date(o.timestamp) >= thirtyDaysAgo);
+    } else if (dateFilter === "lastMonth") {
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      filtered = filtered.filter((o) => {
+        const orderDate = new Date(o.timestamp);
+        return orderDate >= lastMonthStart && orderDate <= lastMonthEnd;
+      });
     }
 
     return filtered;
   }, [orders, search, dateFilter]);
+
+  const totalSales = filteredOrders.reduce((sum, o) => sum + o.totalPrice, 0);
 
   const handleSelectOrder = (orderId: string) => {
     const newSelected = new Set(selectedOrders);
@@ -152,11 +161,19 @@ export function OrderTracking() {
               <SelectItem value="yesterday">Yesterday</SelectItem>
               <SelectItem value="week">This Week</SelectItem>
               <SelectItem value="month">This Month</SelectItem>
+              <SelectItem value="lastMonth">Last Month</SelectItem>
             </SelectContent>
           </Select>
           <Button onClick={handleExport} className="gap-2">
             <Download className="h-4 w-4" /> Export
           </Button>
+        </div>
+      </div>
+
+      {/* Total Sales Display */}
+      <div className="px-4 py-3 bg-muted/50 border-b border-border">
+        <div className="text-2xl font-bold text-card-foreground">
+          Total Sales = ₱{totalSales.toFixed(2)}
         </div>
       </div>
 

@@ -28,7 +28,7 @@ import { utils, writeFile } from "xlsx";
 export function TableRecords() {
   const { sessions } = usePOSStore();
   const [search, setSearch] = useState("");
-  const [dateFilter, setDateFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("today");
 
   const filteredSessions = useMemo(() => {
     let filtered = [...sessions].reverse();
@@ -60,6 +60,13 @@ export function TableRecords() {
     } else if (dateFilter === "month") {
       const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       filtered = filtered.filter((s) => new Date(s.startTime) >= monthAgo);
+    } else if (dateFilter === "lastMonth") {
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      filtered = filtered.filter((s) => {
+        const sessionDate = new Date(s.startTime);
+        return sessionDate >= lastMonthStart && sessionDate <= lastMonthEnd;
+      });
     }
 
     return filtered;
@@ -159,6 +166,7 @@ export function TableRecords() {
                 <SelectItem value="yesterday">Yesterday</SelectItem>
                 <SelectItem value="week">This Week</SelectItem>
                 <SelectItem value="month">This Month</SelectItem>
+                <SelectItem value="lastMonth">Last Month</SelectItem>
               </SelectContent>
             </Select>
             <Button onClick={exportToExcel} className="gap-2">
@@ -167,6 +175,13 @@ export function TableRecords() {
           </div>
         </div>
       </header>
+
+      {/* Total Sales Display */}
+      <div className="px-4 py-3 bg-muted/50 border-b border-border">
+        <div className="text-2xl font-bold text-card-foreground">
+          Total Sales = ₱{totalRevenue.toFixed(2)}
+        </div>
+      </div>
 
       {/* Table */}
       <div className="flex-1 overflow-auto p-4">
