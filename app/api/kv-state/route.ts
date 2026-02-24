@@ -14,6 +14,7 @@ const PERSISTENT_TTL = 60 * 60 * 24 * 365 * 10;
 interface PersistentData {
   tables: any[];
   retailItems: any[];
+  priceCategories: any[];
   hourlyRate: number;
   updatedAt: number;
 }
@@ -30,9 +31,10 @@ export async function GET() {
       tables: persistentData?.tables || [],
       sessions: sessionsData || [],
       retailItems: persistentData?.retailItems || [],
+      priceCategories: persistentData?.priceCategories || [],
       retailSales: retailSalesData || [],
       orders: ordersData || [],
-      hourlyRate: persistentData?.hourlyRate || 15,
+      hourlyRate: persistentData?.hourlyRate,
       updatedAt: Date.now(),
     };
     return NextResponse.json(initial);
@@ -50,6 +52,7 @@ export async function POST(req: Request) {
     const persistentData = {
       tables: body.tables,
       retailItems: body.retailItems,
+      priceCategories: body.priceCategories,
       hourlyRate: body.hourlyRate,
       updatedAt: Date.now(),
     };

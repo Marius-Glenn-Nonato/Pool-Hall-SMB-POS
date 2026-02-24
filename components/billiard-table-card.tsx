@@ -24,6 +24,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const flashStyle = `
   @keyframes flash-red {
@@ -85,10 +93,11 @@ export function BilliardTableCard({
   isResizing,
   isLocked,
 }: BilliardTableCardProps) {
-  const { removeTable, renameTable, setTableStatus } = usePOSStore();
+  const { removeTable, renameTable, setTableStatus, priceCategories, updateTablePriceCategory, hourlyRate } = usePOSStore();
   const [elapsed, setElapsed] = useState(0);
-  const [isRenameOpen, setIsRenameOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [newName, setNewName] = useState(table.name);
+  const [selectedCategoryId, setSelectedCategoryId] = useState(table.priceCategoryId);
 
   useEffect(() => {
     if (table.status === "running" && table.currentSession) {
@@ -101,10 +110,11 @@ export function BilliardTableCard({
     setElapsed(0);
   }, [table.status, table.currentSession]);
 
-  const handleRename = () => {
+  const handleEdit = () => {
     if (newName.trim()) {
       renameTable(table.id, newName.trim());
-      setIsRenameOpen(false);
+      updateTablePriceCategory(table.id, selectedCategoryId);
+      setIsEditOpen(false);
     }
   };
 
@@ -198,19 +208,19 @@ export function BilliardTableCard({
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setIsRenameOpen(true)}>
-                <Edit2 className="h-4 w-4 mr-2" /> Rename
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setIsEditOpen(true); }}>
+                <Edit2 className="h-4 w-4 mr-2" /> Edit Table
               </DropdownMenuItem>
               {table.status === "available" && (
                 <DropdownMenuItem
-                  onClick={() => setTableStatus(table.id, "closed")}
+                  onClick={(e) => { e.stopPropagation(); setTableStatus(table.id, "closed"); }}
                 >
                   <X className="h-4 w-4 mr-2" /> Close Table
                 </DropdownMenuItem>
               )}
               {table.status === "closed" && !table.currentSession && (
                 <DropdownMenuItem
-                  onClick={() => setTableStatus(table.id, "available")}
+                  onClick={(e) => { e.stopPropagation(); setTableStatus(table.id, "available"); }}
                 >
                   <Play className="h-4 w-4 mr-2" /> Open Table
                 </DropdownMenuItem>
@@ -223,7 +233,7 @@ export function BilliardTableCard({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive"
-                onClick={() => removeTable(table.id)}
+                onClick={(e) => { e.stopPropagation(); removeTable(table.id); }}
               >
                 <Trash2 className="h-4 w-4 mr-2" /> Delete
               </DropdownMenuItem>
@@ -260,10 +270,28 @@ export function BilliardTableCard({
               </div>
             </div>
           ) : (
-            <div className="text-center">
+            <div className="text-center space-y-1">
               <p className="text-sm font-medium capitalize text-card-foreground truncate">
                 {table.status}
               </p>
+              {(() => {
+                if (table.priceCategoryId) {
+                  const category = priceCategories.find(c => c.id === table.priceCategoryId);
+                  return (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {category ? `${category.name} - ₱${category.hourlyRate}/hr` : "No category"}
+                    </p>
+                  );
+                } else {
+                  // No category assigned, show the hourly rate from store
+                  const { hourlyRate: defaultRate } = usePOSStore.getState();
+                  return (
+                    <p className="text-xs text-muted-foreground truncate">
+                      Default - ₱{defaultRate}/hr
+                    </p>
+                  );
+                }
+              })()}
             </div>
           )}
         </div>
@@ -289,25 +317,44 @@ export function BilliardTableCard({
         )}
       </Card>
 
-      {/* Rename Dialog */}
-      <Dialog open={isRenameOpen} onOpenChange={setIsRenameOpen}>
+      {/* Edit Table Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rename Table</DialogTitle>
+            <DialogTitle>Edit Table</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <Input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Enter new name"
-              onKeyDown={(e) => e.key === "Enter" && handleRename()}
-            />
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="table-name">Table Name</Label>
+              <Input
+                id="table-name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Enter table name"
+                onKeyDown={(e) => e.key === "Enter" && handleEdit()}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="price-category">Price Category</Label>
+              <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
+                <SelectTrigger id="price-category">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {priceCategories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name} (₱{cat.hourlyRate}/hr)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRenameOpen(false)}>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleRename}>Save</Button>
+            <Button onClick={handleEdit}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

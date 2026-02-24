@@ -42,7 +42,7 @@ function calculateAmount(elapsedMs: number, sessionType: "open" | "fixed", fixed
 }
 
 export function SessionDialog({ table: initialTable, open, onClose }: SessionDialogProps) {
-  const { tables, hourlyRate, startSession, endSession, completePayment, updateFixedDuration } = usePOSStore();
+  const { tables, hourlyRate, priceCategories, startSession, endSession, completePayment, updateFixedDuration } = usePOSStore();
   const [sessionType, setSessionType] = useState<"open" | "fixed">("open");
   const [fixedDuration, setFixedDuration] = useState("1");
   const [editingDuration, setEditingDuration] = useState<string | null>(null);
@@ -50,6 +50,16 @@ export function SessionDialog({ table: initialTable, open, onClose }: SessionDia
 
   // Get the current table from store to ensure we have the latest data
   const table = tables.find(t => t.id === initialTable.id) || initialTable;
+  
+  // Get the table's price category hourly rate (if assigned), otherwise use default
+  let tableHourlyRate = hourlyRate;
+  if (table.priceCategoryId) {
+    const category = priceCategories.find(c => c.id === table.priceCategoryId);
+    if (category) {
+      tableHourlyRate = category.hourlyRate;
+    }
+  }
+  
   const isRunning = table.status === "running" && table.currentSession;
   const isClosed = table.status === "closed" && table.currentSession;
 
@@ -219,7 +229,7 @@ export function SessionDialog({ table: initialTable, open, onClose }: SessionDia
                       />
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      New Total: ₱{(parseFloat(editingDuration || "0") * hourlyRate).toFixed(2)}
+                      New Total: ₱{(parseFloat(editingDuration || "0") * tableHourlyRate).toFixed(2)}
                     </div>
                     <div className="flex gap-2">
                       <Button
@@ -316,7 +326,7 @@ export function SessionDialog({ table: initialTable, open, onClose }: SessionDia
                   onChange={(e) => setFixedDuration(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Estimated: ₱{(parseFloat(fixedDuration || "0") * hourlyRate).toFixed(2)}
+                  Estimated: ₱{(parseFloat(fixedDuration || "0") * tableHourlyRate).toFixed(2)}
                 </p>
               </div>
             )}
@@ -325,7 +335,7 @@ export function SessionDialog({ table: initialTable, open, onClose }: SessionDia
             <div className="bg-muted rounded-lg p-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Hourly Rate</span>
-                <span className="font-medium">₱{hourlyRate}/hr</span>
+                <span className="font-medium">₱{tableHourlyRate}/hr</span>
               </div>
             </div>
           </div>

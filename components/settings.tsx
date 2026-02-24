@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DollarSign, Save, RotateCcw, AlertTriangle } from "lucide-react";
+import { DollarSign, Save, RotateCcw, AlertTriangle, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,11 +18,21 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export function Settings() {
-  const { hourlyRate, setHourlyRate, tables } = usePOSStore();
+  const { hourlyRate, setHourlyRate, tables, priceCategories, addPriceCategory, updatePriceCategory, deletePriceCategory } = usePOSStore();
   const [rate, setRate] = useState(hourlyRate.toString());
   const [saved, setSaved] = useState(false);
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryRate, setNewCategoryRate] = useState("");
 
   const handleSaveRate = () => {
     const newRate = parseFloat(rate);
@@ -30,6 +40,16 @@ export function Settings() {
       setHourlyRate(newRate);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+    }
+  };
+
+  const handleAddCategory = () => {
+    const categoryRate = parseFloat(newCategoryRate);
+    if (newCategoryName.trim() && !isNaN(categoryRate) && categoryRate > 0) {
+      addPriceCategory(newCategoryName.trim(), categoryRate);
+      setNewCategoryName("");
+      setNewCategoryRate("");
+      setIsAddCategoryOpen(false);
     }
   };
 
@@ -52,20 +72,99 @@ export function Settings() {
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-4 space-y-6">
-        {/* Pricing Settings */}
+        {/* Price Categories */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" /> Price Categories
+                </CardTitle>
+                <CardDescription>
+                  Manage table price categories (Regular, VIP, VVIP, etc.)
+                </CardDescription>
+              </div>
+              <Dialog open={isAddCategoryOpen} onOpenChange={setIsAddCategoryOpen}>
+                <Button onClick={() => setIsAddCategoryOpen(true)} className="gap-2">
+                  + Add Category
+                </Button>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add Price Category</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="cat-name">Category Name</Label>
+                      <Input
+                        id="cat-name"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        placeholder="e.g., VIP, Regular, VVIP"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cat-rate">Hourly Rate (₱)</Label>
+                      <Input
+                        id="cat-rate"
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        value={newCategoryRate}
+                        onChange={(e) => setNewCategoryRate(e.target.value)}
+                        placeholder="e.g., 25.50"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsAddCategoryOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleAddCategory}>Add Category</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {priceCategories.length > 0 ? (
+                priceCategories.map((cat) => (
+                  <div key={cat.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div>
+                      <p className="font-medium">{cat.name}</p>
+                      <p className="text-sm text-muted-foreground">₱{cat.hourlyRate}/hr</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deletePriceCategory(cat.id)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No price categories created</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Default Hourly Rate */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5" /> Pricing
+              <DollarSign className="h-5 w-5" /> Default Hourly Rate
             </CardTitle>
             <CardDescription>
-              Set the default hourly rate for table sessions
+              Fallback rate for tables without an assigned price category
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-4">
               <div className="flex-1 space-y-2">
-                <Label htmlFor="rate">Default Hourly Rate (₱)</Label>
+                <Label htmlFor="rate">Default Rate (₱)</Label>
                 <Input
                   id="rate"
                   type="number"
@@ -76,7 +175,7 @@ export function Settings() {
                   className="max-w-xs"
                 />
                 <p className="text-xs text-muted-foreground">
-                  This rate will be applied to all new table sessions
+                  Used when a table has no price category assigned
                 </p>
               </div>
               <Button onClick={handleSaveRate} className="gap-2">

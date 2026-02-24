@@ -2,14 +2,21 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { BilliardTable, TableSession, RetailItem, RetailSale, Order, OrderItem } from "./types";
+import type { BilliardTable, TableSession, RetailItem, RetailSale, Order, OrderItem, PriceCategory } from "./types";
 
 interface POSStore {
+  // Price Categories
+  priceCategories: PriceCategory[];
+  addPriceCategory: (name: string, hourlyRate: number) => void;
+  updatePriceCategory: (id: string, name: string, hourlyRate: number) => void;
+  deletePriceCategory: (id: string) => void;
+
   // Tables
   tables: BilliardTable[];
-  addTable: (name: string) => void;
+  addTable: (name: string, priceCategoryId?: string) => void;
   removeTable: (id: string) => void;
   renameTable: (id: string, name: string) => void;
+  updateTablePriceCategory: (id: string, priceCategoryId: string) => void;
   updateTablePosition: (id: string, position: { x: number; y: number }) => void;
   updateTableSize: (id: string, size: { width: number; height: number }) => void;
   setTableStatus: (
@@ -51,6 +58,37 @@ interface POSStore {
 export const usePOSStore = create<POSStore>()(
   persist(
     (set, get) => ({
+      // Price Categories
+      priceCategories: [
+        { id: "cat-regular", name: "Regular", hourlyRate: 15 },
+        { id: "cat-vip", name: "VIP", hourlyRate: 25 },
+        { id: "cat-vvip", name: "VVIP", hourlyRate: 50 },
+      ],
+
+      addPriceCategory: (name, hourlyRate) =>
+        set((state) => ({
+          priceCategories: [
+            ...state.priceCategories,
+            {
+              id: `cat-${Date.now()}`,
+              name,
+              hourlyRate,
+            },
+          ],
+        })),
+
+      updatePriceCategory: (id, name, hourlyRate) =>
+        set((state) => ({
+          priceCategories: state.priceCategories.map((cat) =>
+            cat.id === id ? { ...cat, name, hourlyRate } : cat
+          ),
+        })),
+
+      deletePriceCategory: (id) =>
+        set((state) => ({
+          priceCategories: state.priceCategories.filter((cat) => cat.id !== id),
+        })),
+
       // Initial tables
       tables: [
         {
@@ -83,19 +121,20 @@ export const usePOSStore = create<POSStore>()(
         },
       ],
 
-      addTable: (name) =>
-  set((state) => ({
-    tables: [
-      ...state.tables,
-      {
-        id: `table-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        name,
-        status: "available",
-        position: { x: 50, y: 50 },
-        size: { width: 180, height: 140 }, // ✅ REQUIRED
-      },
-    ],
-  })),
+      addTable: (name, priceCategoryId) =>
+        set((state) => ({
+          tables: [
+            ...state.tables,
+            {
+              id: `table-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              name,
+              status: "available",
+              position: { x: 50, y: 50 },
+              size: { width: 180, height: 140 },
+              ...(priceCategoryId ? { priceCategoryId } : {}),
+            },
+          ],
+        })),
 
       removeTable: (id) =>
         set((state) => ({
@@ -105,6 +144,13 @@ export const usePOSStore = create<POSStore>()(
       renameTable: (id, name) =>
         set((state) => ({
           tables: state.tables.map((t) => (t.id === id ? { ...t, name } : t)),
+        })),
+
+      updateTablePriceCategory: (id, priceCategoryId) =>
+        set((state) => ({
+          tables: state.tables.map((t) =>
+            t.id === id ? { ...t, priceCategoryId } : t
+          ),
         })),
 
       updateTablePosition: (id, position) =>
@@ -133,9 +179,18 @@ export const usePOSStore = create<POSStore>()(
       setHourlyRate: (rate) => set({ hourlyRate: rate }),
 
       startSession: (tableId, sessionType, fixedDuration) => {
-        const { tables, hourlyRate } = get();
+        const { tables, priceCategories, hourlyRate } = get();
         const table = tables.find((t) => t.id === tableId);
         if (!table) return;
+
+        // Get the hourly rate from the table's price category if assigned, otherwise use default
+        let calculatedRate = hourlyRate;
+        if (table.priceCategoryId) {
+          const category = priceCategories.find((cat) => cat.id === table.priceCategoryId);
+          if (category) {
+            calculatedRate = category.hourlyRate;
+          }
+        }
 
         const session: TableSession = {
           id: `session-${Date.now()}`,
@@ -144,7 +199,7 @@ export const usePOSStore = create<POSStore>()(
           startTime: new Date(),
           sessionType,
           fixedDuration,
-          hourlyRate,
+          hourlyRate: calculatedRate,
         };
 
         set((state) => ({
@@ -463,6 +518,7 @@ if (typeof window !== "undefined") {
           tables: data.tables && data.tables.length ? data.tables : s.tables,
           sessions: data.sessions || s.sessions,
           retailItems: data.retailItems || s.retailItems,
+          priceCategories: data.priceCategories && data.priceCategories.length ? data.priceCategories : s.priceCategories,
           retailSales: data.retailSales || s.retailSales,
           orders: data.orders || s.orders,
           hourlyRate: data.hourlyRate ?? s.hourlyRate,
@@ -487,6 +543,7 @@ if (typeof window !== "undefined") {
               tables: state.tables,
               sessions: state.sessions,
               retailItems: state.retailItems,
+              priceCategories: state.priceCategories,
               retailSales: state.retailSales,
               orders: state.orders,
               hourlyRate: state.hourlyRate,

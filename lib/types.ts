@@ -2,12 +2,19 @@ export type TableStatus = "available" | "running" | "closed";
 
 export type SessionType = "fixed" | "open";
 
+export interface PriceCategory {
+  id: string;
+  name: string;
+  hourlyRate: number;
+}
+
 export interface BilliardTable {
   id: string;
   name: string;
   status: TableStatus;
   position: { x: number; y: number };
   size: { width: number; height: number };
+  priceCategoryId?: string; // Reference to price category (optional)
   currentSession?: TableSession;
 }
 

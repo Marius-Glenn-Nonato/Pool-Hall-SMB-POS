@@ -240,10 +240,10 @@ export function TableRecords() {
                         : "Open"}
                     </TableCell>
                     <TableCell className="text-right">
-                      ${session.hourlyRate}/hr
+                      ₱{session.hourlyRate}/hr
                     </TableCell>
                     <TableCell className="text-right font-medium text-success">
-                      ${session.totalAmount?.toFixed(2) || "—"}
+                      ₱{session.totalAmount?.toFixed(2) || "—"}
                     </TableCell>
                   </TableRow>
                 ))
