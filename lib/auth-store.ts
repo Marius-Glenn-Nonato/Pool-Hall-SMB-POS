@@ -6,20 +6,18 @@ import { persist } from "zustand/middleware";
 interface User {
   id: string;
   username: string;
-  role: "admin" | "staff";
+  role: "admin" | "user";
   createdAt: Date;
 }
 
 interface AuthStore {
-  users: Array<{ id: string; username: string; passwordHash: string; role: "admin" | "staff"; createdAt: Date }>;
+  users: Array<{ id: string; username: string; passwordHash: string; role: "admin" | "user"; createdAt: Date }>;
   currentUser: User | null;
   isAuthenticated: boolean;
   
   // Auth methods
   login: (username: string, password: string) => { success: boolean; error?: string };
   logout: () => void;
-  register: (username: string, password: string, role?: "admin" | "staff") => { success: boolean; error?: string };
-  changePassword: (oldPassword: string, newPassword: string) => { success: boolean; error?: string };
 }
 
 // Simple hash function for demo (in production, use bcrypt on server)
@@ -36,13 +34,20 @@ function simpleHash(str: string): string {
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({
-      // Default admin user: admin/admin123
+      // Default users: admin/admin123 and user/user123
       users: [
         {
-          id: "user-default",
+          id: "user-admin",
           username: "admin",
           passwordHash: simpleHash("admin123"),
           role: "admin",
+          createdAt: new Date(),
+        },
+        {
+          id: "user-regular",
+          username: "user",
+          passwordHash: simpleHash("user123"),
+          role: "user",
           createdAt: new Date(),
         },
       ],
@@ -56,11 +61,11 @@ export const useAuthStore = create<AuthStore>()(
         );
 
         if (!user) {
-          return { success: false, error: "User not found" };
+          return { success: false, error: "Invalid username or password" };
         }
 
         if (user.passwordHash !== simpleHash(password)) {
-          return { success: false, error: "Invalid password" };
+          return { success: false, error: "Invalid username or password" };
         }
 
         set({
@@ -82,70 +87,14 @@ export const useAuthStore = create<AuthStore>()(
           isAuthenticated: false,
         });
       },
-
-      register: (username, password, role = "staff") => {
-        const { users } = get();
-
-        if (username.length < 3) {
-          return { success: false, error: "Username must be at least 3 characters" };
-        }
-
-        if (password.length < 6) {
-          return { success: false, error: "Password must be at least 6 characters" };
-        }
-
-        if (users.some((u) => u.username.toLowerCase() === username.toLowerCase())) {
-          return { success: false, error: "Username already exists" };
-        }
-
-        const newUser = {
-          id: `user-${Date.now()}`,
-          username,
-          passwordHash: simpleHash(password),
-          role,
-          createdAt: new Date(),
-        };
-
-        set((state) => ({
-          users: [...state.users, newUser],
-        }));
-
-        return { success: true };
-      },
-
-      changePassword: (oldPassword, newPassword) => {
-        const { currentUser, users } = get();
-
-        if (!currentUser) {
-          return { success: false, error: "Not logged in" };
-        }
-
-        const user = users.find((u) => u.id === currentUser.id);
-        if (!user) {
-          return { success: false, error: "User not found" };
-        }
-
-        if (user.passwordHash !== simpleHash(oldPassword)) {
-          return { success: false, error: "Current password is incorrect" };
-        }
-
-        if (newPassword.length < 6) {
-          return { success: false, error: "New password must be at least 6 characters" };
-        }
-
-        set((state) => ({
-          users: state.users.map((u) =>
-            u.id === currentUser.id
-              ? { ...u, passwordHash: simpleHash(newPassword) }
-              : u
-          ),
-        }));
-
-        return { success: true };
-      },
     }),
     {
       name: "pool-hall-auth",
+      // Only persist currentUser and isAuthenticated, keep users array from initial state
+      partialize: (state) => ({
+        currentUser: state.currentUser,
+        isAuthenticated: state.isAuthenticated,
+      }),
     }
   )
 );

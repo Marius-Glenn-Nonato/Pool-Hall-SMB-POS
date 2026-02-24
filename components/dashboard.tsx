@@ -10,8 +10,6 @@ import { OrderTracking } from "./order-tracking";
 import { RetailInventory } from "./retail-inventory";
 import { SalesAnalytics } from "./sales-analytics";
 import { Settings } from "./settings";
-import { PasswordDialog } from "./password-dialog";
-import { useAuth } from "@/hooks/use-auth";
 import {
   LayoutGrid,
   ClipboardList,
@@ -49,50 +47,18 @@ const navItems: { id: View; label: string; icon: React.ReactNode }[] = [
 export function Dashboard() {
   const [currentView, setCurrentView] = useState<View>("floor");
   const { currentUser, logout } = useAuthStore();
-  const { authenticate, isSessionValid } = useAuth();
-  const [pendingView, setPendingView] = useState<View | null>(null);
-  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  const [authenticatedPage, setAuthenticatedPage] = useState<View | null>(null);
 
-  // Protected pages that require password
+  // Protected pages that only admin can access
   const protectedPages: View[] = ["records", "orders", "analytics"];
+  const isUserRole = currentUser?.role === "user";
 
   const handleNavClick = (viewId: View) => {
-    // If switching away from a protected page, lock it
-    if (protectedPages.includes(currentView) && currentView !== viewId) {
-      setAuthenticatedPage(null);
-    }
-
-    // Check if the target page is protected
-    if (protectedPages.includes(viewId)) {
-      // Check if already authenticated for this specific page
-      if (authenticatedPage === viewId && isSessionValid()) {
-        // Already authenticated for this page
-        setCurrentView(viewId);
-        return;
-      }
-
-      // Need to authenticate
-      setPendingView(viewId);
-      setShowPasswordDialog(true);
+    // If user role tries to access protected pages, do nothing
+    if (isUserRole && protectedPages.includes(viewId)) {
       return;
     }
 
-    // Unprotected page - just switch to it
     setCurrentView(viewId);
-  };
-
-  const handlePasswordSubmit = (password: string) => {
-    if (authenticate(password)) {
-      // Password is correct - set as authenticated for this page
-      if (pendingView) {
-        setAuthenticatedPage(pendingView);
-        setCurrentView(pendingView);
-        setPendingView(null);
-      }
-      setShowPasswordDialog(false);
-    }
-    // If password is wrong, dialog stays open and shows error
   };
 
   return (
@@ -120,22 +86,30 @@ export function Dashboard() {
         </div>
 
         <nav className="flex-1 p-2">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => handleNavClick(item.id)}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-3 rounded-lg mb-1 transition-colors",
-                "hover:bg-sidebar-accent",
-                currentView === item.id
-                  ? "bg-sidebar-accent text-sidebar-primary"
-                  : "text-sidebar-foreground/70"
-              )}
-            >
-              {item.icon}
-              <span className="hidden lg:block">{item.label}</span>
-            </button>
-          ))}
+          {navItems.map((item) => {
+            const isProtected = protectedPages.includes(item.id);
+            const isDisabled = isUserRole && isProtected;
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleNavClick(item.id)}
+                disabled={isDisabled}
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-3 rounded-lg mb-1 transition-colors",
+                  "hover:bg-sidebar-accent",
+                  isDisabled && "opacity-50 cursor-not-allowed hover:bg-transparent",
+                  currentView === item.id && !isDisabled
+                    ? "bg-sidebar-accent text-sidebar-primary"
+                    : "text-sidebar-foreground/70"
+                )}
+                title={isDisabled ? "This page is restricted for your role" : ""}
+              >
+                {item.icon}
+                <span className="hidden lg:block">{item.label}</span>
+              </button>
+            );
+          })}
         </nav>
 
         <div className="p-4 border-t border-sidebar-border space-y-3">
@@ -143,6 +117,11 @@ export function Dashboard() {
             <User className="h-4 w-4" />
             <span className="hidden lg:block text-sm font-medium truncate">
               {currentUser?.username}
+            </span>
+          </div>
+          <div className="hidden lg:block">
+            <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+              {currentUser?.role === "admin" ? "Administrator" : "User"}
             </span>
           </div>
           <Button
@@ -175,23 +154,6 @@ export function Dashboard() {
         {currentView === "analytics" && <SalesAnalytics />}
         {currentView === "settings" && <Settings />}
       </main>
-
-      {/* Password Dialog for Protected Pages */}
-      <PasswordDialog
-        isOpen={showPasswordDialog}
-        pageName={
-          pendingView === "records"
-            ? "Table Records"
-            : pendingView === "orders"
-              ? "Order Tracking"
-              : "Analytics"
-        }
-        onAuthenticate={handlePasswordSubmit}
-        onCancel={() => {
-          setShowPasswordDialog(false);
-          setPendingView(null);
-        }}
-      />
     </div>
   );
 }
