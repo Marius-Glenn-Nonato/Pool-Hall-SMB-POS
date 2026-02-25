@@ -33,21 +33,24 @@ export function SalesAnalytics() {
     const now = new Date();
     const today = now.toDateString();
 
+    // Filter out voided sessions for all calculations
+    const activeSessions = sessions.filter((s) => s.status !== "voided");
+
     // Table analytics
-    const todaySessions = sessions.filter(
+    const todaySessions = activeSessions.filter(
       (s) => new Date(s.startTime).toDateString() === today
     );
     const todayTableRevenue = todaySessions.reduce(
       (sum, s) => sum + (s.totalAmount || 0),
       0
     );
-    const totalTableRevenue = sessions.reduce(
+    const totalTableRevenue = activeSessions.reduce(
       (sum, s) => sum + (s.totalAmount || 0),
       0
     );
 
     // Calculate average session duration
-    const completedSessions = sessions.filter((s) => s.endTime);
+    const completedSessions = activeSessions.filter((s) => s.endTime);
     const avgDurationMs = completedSessions.length
       ? completedSessions.reduce((sum, s) => {
           const duration =
@@ -95,7 +98,7 @@ export function SalesAnalytics() {
       });
       dailyData[dateStr] = { tables: 0, retail: 0 };
 
-      sessions.forEach((s) => {
+      activeSessions.forEach((s) => {
         if (new Date(s.startTime).toDateString() === date.toDateString()) {
           dailyData[dateStr].tables += s.totalAmount || 0;
         }
@@ -116,7 +119,7 @@ export function SalesAnalytics() {
       totalRetailRevenue,
       totalRevenue: totalTableRevenue + totalRetailRevenue,
       todaySessions: todaySessions.length,
-      totalSessions: sessions.length,
+      totalSessions: activeSessions.length,
       avgDurationMins,
       todayTransactions: todayRetailSales.length,
       totalTransactions: retailSales.length,

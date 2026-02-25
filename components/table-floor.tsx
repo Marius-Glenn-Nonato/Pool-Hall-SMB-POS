@@ -100,7 +100,7 @@ function MobileTableRow({ table, onSelect }: { table: BilliardTable; onSelect: (
                 {formatDuration(elapsed)}
               </div>
               <div className="text-xs text-muted-foreground">
-                ₱{calculateAmount(elapsed, table.currentSession.sessionType, table.currentSession.fixedDuration, table.currentSession.hourlyRate).toFixed(2)}
+                {table.currentSession.sessionType === "fixed" ? "Fixed" : "Open"} • ₱{calculateAmount(elapsed, table.currentSession.sessionType, table.currentSession.fixedDuration, table.currentSession.hourlyRate).toFixed(2)}
               </div>
             </div>
           ) : table.status === "closed" && table.currentSession ? (

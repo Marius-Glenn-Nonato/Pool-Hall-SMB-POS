@@ -22,19 +22,33 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
-import { Download, Search, Calendar } from "lucide-react";
+import { Download, Search, Calendar, Edit, Trash2, AlertCircle } from "lucide-react";
 import { utils, writeFile } from "xlsx";
+import type { TableSession } from "@/lib/types";
 
 export function TableRecords() {
-  const { sessions } = usePOSStore();
+  const { sessions, voidSession, editSession } = usePOSStore();
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState("today");
+  const [editingSession, setEditingSession] = useState<TableSession | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editedAmount, setEditedAmount] = useState<string>("");
 
   const daysRemaining = getDaysRemainingInMonth();
 
   const filteredSessions = useMemo(() => {
     let filtered = [...sessions].reverse();
+
+    // Only include non-voided sessions
+    filtered = filtered.filter((s) => s.status !== "voided");
 
     // Search filter
     if (search) {
@@ -207,12 +221,13 @@ export function TableRecords() {
                 <TableHead>Type</TableHead>
                 <TableHead className="text-right">Rate</TableHead>
                 <TableHead className="text-right">Total</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredSessions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12">
+                  <TableCell colSpan={8} className="text-center py-12">
                     <p className="text-muted-foreground">No records found</p>
                     <p className="text-sm text-muted-foreground/70 mt-1">
                       Completed table sessions will appear here
@@ -245,6 +260,33 @@ export function TableRecords() {
                     <TableCell className="text-right font-medium text-success">
                       ₱{session.totalAmount?.toFixed(2) || "—"}
                     </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditingSession(session);
+                            setEditedAmount((session.totalAmount || 0).toString());
+                            setIsEditDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => {
+                            if (confirm(`Are you sure you want to void this session? This will remove it from revenue.`)) {
+                              voidSession(session.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -252,6 +294,68 @@ export function TableRecords() {
           </Table>
         </div>
       </div>
-    </div>
+
+      {/* Edit Session Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-warning" />
+              Edit Session
+            </DialogTitle>
+          </DialogHeader>
+          {editingSession && (
+            <div className="space-y-4 py-4">
+              <div className="bg-muted/50 p-3 rounded-lg space-y-2">
+                <div className="text-sm">
+                  <span className="font-medium text-muted-foreground">Table:</span>
+                  <span className="ml-2">{editingSession.tableName}</span>
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium text-muted-foreground">Type:</span>
+                  <span className="ml-2 capitalize">
+                    {editingSession.sessionType === "fixed"
+                      ? `Fixed (${editingSession.fixedDuration}h)`
+                      : "Open"}
+                  </span>
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium text-muted-foreground">Rate:</span>
+                  <span className="ml-2">₱{editingSession.hourlyRate}/hr</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Total Amount (₱)</label>
+                <Input
+                  type="number"
+                  value={editedAmount}
+                  onChange={(e) => setEditedAmount(e.target.value)}
+                  placeholder="0.00"
+                  step="0.01"
+                  min="0"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (editingSession) {
+                  editSession(editingSession.id, {
+                    totalAmount: parseFloat(editedAmount) || 0,
+                  });
+                  setIsEditDialogOpen(false);
+                  setEditingSession(null);
+                }
+              }}
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>    </div>
   );
 }

@@ -36,6 +36,8 @@ interface POSStore {
   endSession: (tableId: string, elapsedMs?: number) => void;
   completePayment: (tableId: string) => void;
   updateFixedDuration: (tableId: string, newDuration: number) => void;
+  voidSession: (sessionId: string) => void;
+  editSession: (sessionId: string, updates: Partial<TableSession>) => void;
 
   // Retail
   retailItems: RetailItem[];
@@ -282,6 +284,20 @@ export const usePOSStore = create<POSStore>()(
                   },
                 }
               : t
+          ),
+        })),
+
+      voidSession: (sessionId) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId ? { ...s, status: "voided" } : s
+          ),
+        })),
+
+      editSession: (sessionId, updates) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId ? { ...s, ...updates } : s
           ),
         })),
 

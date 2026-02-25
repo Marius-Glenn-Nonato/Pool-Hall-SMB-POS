@@ -249,7 +249,7 @@ export function BilliardTableCard({
                 {formatDuration(elapsed)}
               </div>
               <div className="text-xs text-muted-foreground text-center truncate">
-                ₱{table.currentSession.hourlyRate}/hr
+                {table.currentSession.sessionType === "fixed" ? "Fixed" : "Open"} • ₱{table.currentSession.hourlyRate}/hr
                 {table.currentSession.sessionType === "fixed" &&
                   ` (${table.currentSession.fixedDuration}h)`}
               </div>
