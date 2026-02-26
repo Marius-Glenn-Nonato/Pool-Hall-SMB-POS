@@ -53,10 +53,11 @@ function calculateAmount(elapsedMs: number, sessionType: "open" | "fixed", fixed
 }
 
 export function SessionDialog({ table: initialTable, open, onClose }: SessionDialogProps) {
-  const { tables, hourlyRate, priceCategories, startSession, endSession, completePayment, updateFixedDuration } = usePOSStore();
+  const { tables, hourlyRate, priceCategories, startSession, endSession, completePayment, updateFixedDuration, updateCurrentSessionAmount } = usePOSStore();
   const [sessionType, setSessionType] = useState<"open" | "fixed">("open");
   const [fixedDuration, setFixedDuration] = useState("1");
   const [editingDuration, setEditingDuration] = useState<string | null>(null);
+  const [editingPayment, setEditingPayment] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
 
   // Get the current table from store to ensure we have the latest data
@@ -85,6 +86,14 @@ export function SessionDialog({ table: initialTable, open, onClose }: SessionDia
     }
   }, [isRunning, isClosed, table.currentSession]);
 
+  // Reset editing states when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setEditingDuration(null);
+      setEditingPayment(null);
+    }
+  }, [open]);
+
   const handleStartSession = () => {
     const duration = sessionType === "fixed" ? parseFloat(fixedDuration) : undefined;
     startSession(table.id, sessionType, duration);
@@ -109,7 +118,12 @@ export function SessionDialog({ table: initialTable, open, onClose }: SessionDia
   // Calculate final amount for payment using the same logic as records
   let finalAmount = 0;
   if ((isRunning || isClosed) && table.currentSession) {
-    finalAmount = calculateAmount(displayElapsed, table.currentSession.sessionType, table.currentSession.fixedDuration, table.currentSession.hourlyRate);
+    // If totalAmount was manually edited, use that. Otherwise calculate it.
+    if (isClosed && table.currentSession.totalAmount !== undefined) {
+      finalAmount = table.currentSession.totalAmount;
+    } else {
+      finalAmount = calculateAmount(displayElapsed, table.currentSession.sessionType, table.currentSession.fixedDuration, table.currentSession.hourlyRate);
+    }
   }
 
   return (
@@ -160,6 +174,60 @@ export function SessionDialog({ table: initialTable, open, onClose }: SessionDia
                 </div>
               )}
             </div>
+
+            {/* Edit Payment Amount */}
+            {editingPayment === null ? (
+              <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Amount to Collect</p>
+                    <p className="text-lg font-semibold">
+                      ₱{finalAmount.toFixed(2)}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditingPayment(finalAmount.toFixed(2))}
+                  >
+                    Edit
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 space-y-3">
+                <div>
+                  <Label htmlFor="edit-payment">Amount to Collect (₱)</Label>
+                  <Input
+                    id="edit-payment"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editingPayment}
+                    onChange={(e) => setEditingPayment(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditingPayment(null)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      updateCurrentSessionAmount(table.id, parseFloat(editingPayment || "0"));
+                      setEditingPayment(null);
+                    }}
+                  >
+                    Save Changes
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         ) : isRunning && table.currentSession ? (
           // Running Session Screen

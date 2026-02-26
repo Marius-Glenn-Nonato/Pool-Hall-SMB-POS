@@ -36,6 +36,7 @@ interface POSStore {
   endSession: (tableId: string, elapsedMs?: number) => void;
   completePayment: (tableId: string) => void;
   updateFixedDuration: (tableId: string, newDuration: number) => void;
+  updateCurrentSessionAmount: (tableId: string, amount: number) => void;
   voidSession: (sessionId: string) => void;
   editSession: (sessionId: string, updates: Partial<TableSession>) => void;
 
@@ -247,7 +248,11 @@ export const usePOSStore = create<POSStore>()(
         // For fixed sessions, charge the full fixed duration
         // For open sessions, calculate based on actual time used (using the frozen elapsed time)
         let totalAmount: number;
-        if (session.sessionType === "fixed" && session.fixedDuration) {
+        
+        // If totalAmount was already set (manually edited), use that instead of recalculating
+        if (session.totalAmount !== undefined) {
+          totalAmount = session.totalAmount;
+        } else if (session.sessionType === "fixed" && session.fixedDuration) {
           totalAmount = session.fixedDuration * session.hourlyRate;
         } else {
           // Use the endedElapsedMs that was captured when session ended
@@ -291,6 +296,21 @@ export const usePOSStore = create<POSStore>()(
                   currentSession: {
                     ...t.currentSession,
                     fixedDuration: newDuration,
+                  },
+                }
+              : t
+          ),
+        })),
+
+      updateCurrentSessionAmount: (tableId, amount) =>
+        set((state) => ({
+          tables: state.tables.map((t) =>
+            t.id === tableId && t.currentSession
+              ? {
+                  ...t,
+                  currentSession: {
+                    ...t.currentSession,
+                    totalAmount: amount,
                   },
                 }
               : t
