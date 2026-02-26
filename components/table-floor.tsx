@@ -70,9 +70,20 @@ function MobileTableRow({ table, onSelect }: { table: BilliardTable; onSelect: (
     if (sessionType === "fixed" && fixedDuration) {
       return fixedDuration * hourlyRate;
     }
-    // For open sessions, round up to nearest quarter hour (15 minutes)
-    const durationHours = elapsedMs / (1000 * 60 * 60);
-    return Math.ceil(durationHours * 4) / 4 * hourlyRate;
+    // For open sessions: first hour fixed, then 10-minute intervals
+    const durationMinutes = elapsedMs / (1000 * 60);
+    if (durationMinutes <= 60) {
+      return hourlyRate;
+    }
+    // Calculate 10-minute period cost: (hourlyRate / 60) * 10, rounded up to nearest 0.10
+    const tenMinuteCost = Math.ceil((hourlyRate / 60) * 10 * 10) / 10;
+    // Calculate how many 10-minute intervals have been exceeded after the first hour
+    const minutesAfterFirstHour = durationMinutes - 60;
+    const intervalsExceeded = Math.floor(minutesAfterFirstHour / 10);
+    // Total = first hour + penalties for each interval
+    const total = hourlyRate + (intervalsExceeded * tenMinuteCost);
+    // Round to nearest whole number
+    return Math.round(total);
   }
 
   return (

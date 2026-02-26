@@ -252,8 +252,18 @@ export const usePOSStore = create<POSStore>()(
         } else {
           // Use the endedElapsedMs that was captured when session ended
           const durationMs = session.endedElapsedMs || 0;
-          const durationHours = durationMs / (1000 * 60 * 60);
-          totalAmount = Math.ceil(durationHours * 4) / 4 * session.hourlyRate; // Round to 15 min
+          const durationMinutes = durationMs / (1000 * 60);
+          if (durationMinutes <= 60) {
+            totalAmount = session.hourlyRate;
+          } else {
+            // Calculate 10-minute period cost: (hourlyRate / 60) * 10, rounded up to nearest 0.10
+            const tenMinuteCost = Math.ceil((session.hourlyRate / 60) * 10 * 10) / 10;
+            // Calculate how many 10-minute intervals have been exceeded after the first hour
+            const minutesAfterFirstHour = durationMinutes - 60;
+            const intervalsExceeded = Math.floor(minutesAfterFirstHour / 10);
+            // Total = first hour + penalties for each interval
+            totalAmount = Math.round(session.hourlyRate + (intervalsExceeded * tenMinuteCost));
+          }
         }
 
         const completedSession: TableSession = {
